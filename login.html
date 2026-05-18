@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>CloudPet Login</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Poppins',sans-serif;
+}
+
+body{
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    overflow:hidden;
+    position:relative;
+
+    background:
+    linear-gradient(
+        rgba(0,0,0,0.22),
+        rgba(0,0,0,0.22)
+    ),
+    url('bg.jpeg');
+
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+}
+
+/* ========================= */
+/* HEWAN */
+/* ========================= */
+
+.emoji{
+    position:absolute;
+
+    font-size:70px;
+
+    z-index:2;
+
+    cursor:grab;
+
+    user-select:none;
+
+    transition:
+    transform 0.3s ease,
+    filter 0.3s ease,
+    left 1.2s ease-in-out,
+    top 1.2s ease-in-out;
+
+    animation:
+    floating 4s ease-in-out infinite;
+}
+
+/* HOVER */
+
+.emoji:hover{
+
+    transform:
+    scale(1.18)
+    rotateY(15deg)
+    rotateX(10deg);
+
+    filter:
+    drop-shadow(0 10px 15px rgba(0,0,0,0.35));
+}
+
+/* FLOAT */
+
+@keyframes floating{
+
+    0%{
+        transform:translateY(0px);
+    }
+
+    50%{
+        transform:translateY(-10px);
+    }
+
+    100%{
+        transform:translateY(0px);
+    }
+}
+
+/* ========================= */
+/* LOGIN CARD */
+/* ========================= */
+
+.container{
+    width:430px;
+    padding:42px;
+
+    border-radius:35px;
+
+    position:relative;
+    z-index:5;
+
+    background:rgba(58, 87, 52, 0.45);
+
+    backdrop-filter:blur(10px);
+
+    border:1px solid rgba(255,255,255,0.18);
+
+    box-shadow:
+    0 10px 35px rgba(0,0,0,0.18);
+
+    animation:cardFloat 5s ease-in-out infinite;
+}
+
+.container::before{
+    content:"";
+    position:absolute;
+    inset:0;
+
+    border-radius:35px;
+
+    background:
+    linear-gradient(
+        180deg,
+        rgba(255,255,255,0.12),
+        transparent
+    );
+
+    pointer-events:none;
+}
+
+@keyframes cardFloat{
+
+    0%{
+        transform:translateY(0px);
+    }
+
+    50%{
+        transform:translateY(-6px);
+    }
+
+    100%{
+        transform:translateY(0px);
+    }
+}
+
+/* ========================= */
+/* TEXT */
+/* ========================= */
+
+.logo{
+    text-align:center;
+
+    font-size:38px;
+    font-weight:700;
+
+    color:#d9f0b4;
+
+    margin-bottom:8px;
+}
+
+.subtitle{
+    text-align:center;
+
+    color:#eef6e8;
+
+    margin-bottom:35px;
+
+    font-size:14px;
+}
+
+/* ========================= */
+/* INPUT */
+/* ========================= */
+
+.input-group{
+    margin-bottom:22px;
+}
+
+label{
+    display:block;
+
+    margin-bottom:8px;
+
+    color:#f3faef;
+
+    font-size:14px;
+    font-weight:600;
+}
+
+input{
+    width:100%;
+    padding:16px;
+
+    border:none;
+    outline:none;
+
+    border-radius:18px;
+
+    background:rgba(255,255,255,0.92);
+
+    font-size:15px;
+}
+
+input:focus{
+    box-shadow:
+    0 0 0 4px rgba(185,230,168,0.28);
+}
+
+/* ========================= */
+/* REMEMBER */
+/* ========================= */
+
+.remember{
+    display:flex;
+    align-items:center;
+
+    gap:10px;
+
+    margin-top:5px;
+    margin-bottom:28px;
+
+    color:#eef6e8;
+
+    font-size:14px;
+}
+
+.remember input{
+    width:17px;
+    height:17px;
+
+    accent-color:#8db96a;
+
+    cursor:pointer;
+}
+
+.remember span{
+    margin-top:1px;
+}
+
+/* ========================= */
+/* BUTTON */
+/* ========================= */
+
+button{
+    width:100%;
+    padding:16px;
+
+    border:none;
+    border-radius:50px;
+
+    background:linear-gradient(
+    90deg,
+    #b8d986,
+    #5f8f4f
+    );
+
+    color:white;
+
+    font-size:18px;
+    font-weight:700;
+
+    cursor:pointer;
+
+    transition:0.35s;
+
+    box-shadow:
+    0 10px 22px rgba(95,143,79,0.35);
+}
+
+button:hover{
+    transform:translateY(-3px);
+}
+
+/* ========================= */
+/* REGISTER */
+/* ========================= */
+
+.register{
+    margin-top:24px;
+
+    text-align:center;
+
+    color:#eef6e8;
+
+    font-size:14px;
+}
+
+.register a{
+    color:#d9f0b4;
+
+    text-decoration:none;
+
+    font-weight:700;
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- HEWAN RAMAI -->
+
+<div class="emoji">🐻</div>
+<div class="emoji">🐰</div>
+<div class="emoji">🦌</div>
+<div class="emoji">🐱</div>
+<div class="emoji">🐼</div>
+<div class="emoji">🦊</div>
+<div class="emoji">🐯</div>
+<div class="emoji">🦁</div>
+<div class="emoji">🐨</div>
+<div class="emoji">🐸</div>
+<div class="emoji">🐵</div>
+<div class="emoji">🐶</div>
+<div class="emoji">🐹</div>
+<div class="emoji">🐺</div>
+<div class="emoji">🦝</div>
+<div class="emoji">🐷</div>
+<div class="emoji">🐥</div>
+<div class="emoji">🦉</div>
+
+<!-- LOGIN -->
+
+<div class="container">
+
+    <div class="logo">
+        CloudPet
+    </div>
+
+    <div class="subtitle">
+        Masuk ke akun CloudPet kamu
+    </div>
+
+    <div class="input-group">
+        <label>Email</label>
+
+        <input type="email" placeholder="email@gmail.com">
+    </div>
+
+    <div class="input-group">
+        <label>Password</label>
+
+        <input type="password" placeholder="••••••••">
+    </div>
+
+    <div class="remember">
+        <input type="checkbox" id="remember">
+        <span for="remember">Remember me</span>
+    </div>
+
+    <button>
+        Login
+    </button>
+
+    <div class="register">
+        Belum punya akun?
+        <a href="#">Daftar</a>
+    </div>
+
+</div>
+
+<script>
+
+/* ========================= */
+/* HEWAN BERLARI */
+/* ========================= */
+
+const emojis = document.querySelectorAll(".emoji");
+
+emojis.forEach(emoji => {
+
+    let isMoving = true;
+
+    let x = Math.random() * (window.innerWidth - 100);
+    let y = Math.random() * (window.innerHeight - 100);
+
+    emoji.style.left = x + "px";
+    emoji.style.top = y + "px";
+
+    const move = setInterval(() => {
+
+        if(!isMoving) return;
+
+        let randomX =
+        Math.random() * (window.innerWidth - 100);
+
+        let randomY =
+        Math.random() * (window.innerHeight - 100);
+
+        emoji.style.left = randomX + "px";
+        emoji.style.top = randomY + "px";
+
+    }, 1200);
+
+    /* KLIK UNTUK BERHENTI */
+
+    emoji.addEventListener("click", () => {
+
+        isMoving = false;
+
+        emoji.style.transform =
+        "scale(1.15)";
+    });
+
+    /* DRAG HEWAN */
+
+    let isDragging = false;
+    let offsetX, offsetY;
+
+    emoji.addEventListener("mousedown", (e) => {
+
+        isDragging = true;
+
+        offsetX = e.clientX - emoji.offsetLeft;
+        offsetY = e.clientY - emoji.offsetTop;
+    });
+
+    document.addEventListener("mousemove", (e) => {
+
+        if(!isDragging) return;
+
+        emoji.style.left =
+        (e.clientX - offsetX) + "px";
+
+        emoji.style.top =
+        (e.clientY - offsetY) + "px";
+    });
+
+    document.addEventListener("mouseup", () => {
+
+        isDragging = false;
+    });
+
+});
+
+</script>
+
+</body>
+</html>
