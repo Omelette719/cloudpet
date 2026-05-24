@@ -10,7 +10,7 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'password', 'role', 'animal_avatar'];
+    protected $fillable = ['name', 'email', 'password', 'role', 'animal_avatar', 'balance', 'account_status'];
 
     protected $hidden = ['password', 'remember_token', 'role'];
 
@@ -19,6 +19,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
+            'balance'           => 'decimal:2',
         ];
     }
 
@@ -28,5 +29,31 @@ class User extends Authenticatable
     public static function animalAvatars(): array
     {
         return ['🐱','🐶','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐸','🐧','🐦','🦆','🦉','🦋','🐢','🐠'];
+    }
+
+    // Relationships for Cloud Services
+    public function computeInstances()
+    {
+        return $this->hasMany(ComputeInstance::class);
+    }
+
+    public function storageBuckets()
+    {
+        return $this->hasMany(StorageBucket::class);
+    }
+
+    public function managedDatabases()
+    {
+        return $this->hasMany(ManagedDatabase::class);
+    }
+
+    public function activityLogs()
+    {
+        return $this->hasMany(ActivityLog::class);
+    }
+
+    public function billingTransactions()
+    {
+        return $this->hasMany(BillingTransaction::class);
     }
 }
