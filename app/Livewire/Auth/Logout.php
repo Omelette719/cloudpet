@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Auth;
 
-use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class Logout extends Component
@@ -11,10 +10,8 @@ class Logout extends Component
 
     public function logout(): void
     {
-        Auth::logout();
-        session()->invalidate();
-        session()->regenerateToken();
-        $this->redirect(route('login'), navigate: true);
+        // Submit logout form - form dirender di view blade
+        $this->dispatch('submit-logout-form');
     }
 
     public function render()

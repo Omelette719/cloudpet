@@ -80,4 +80,7 @@
         </div>
     </div>
 
+    {{-- Upload Pet Photo Demo --}}
+    @livewire('UploadPetPhoto')
+
 </div>
