@@ -3,26 +3,27 @@
 
 /* CloudPet global compute styles (moved from inline view) */
 :root{
-	--cp-bg: #fff8f2;
-	--cp-panel: #fff;
-	--cp-card: #fbf7f2;
-	--cp-text: #0b1220;
-	--cp-muted: #6f8b69;
-	--cp-accent: #8db96a;
-	--cp-chip-bg: rgba(11,18,32,0.06);
-	--cp-shadow: 0 6px 20px rgba(2,6,23,0.06);
-	--cp-border: rgba(255,255,255,0.04);
+	/* Match user-dashboard palette: softer, high readability */
+	--cp-bg: #ffffff;
+	--cp-panel: #ffffff;
+	--cp-card: #fbfbf9;
+	--cp-text: #233226;   /* dark desaturated green for readability */
+	--cp-muted: #768971;  /* matches labels/secondary text in dashboard */
+	--cp-accent: #89a081; /* gentle accent used in user-dashboard */
+	--cp-chip-bg: rgba(137,160,129,0.06);
+	--cp-shadow: 0 4px 12px rgba(16,24,20,0.06);
+	--cp-border: rgba(34,50,38,0.06);
 }
 @media (prefers-color-scheme: dark){
 	:root{
-		--cp-bg: #07120b; /* deep green-black */
-		--cp-panel: #062017; /* soft dark */
+		--cp-bg: #07120b;
+		--cp-panel: #081612;
 		--cp-card: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-		--cp-text: #eaf6ea;
-		--cp-muted: #9fe6b0;
-		--cp-accent: #8db96a;
-		--cp-chip-bg: rgba(255,255,255,0.03);
-		--cp-shadow: 0 8px 28px rgba(0,0,0,0.6);
+		--cp-text: #e6f4e8;   /* readable on dark */
+		--cp-muted: #9fbfa5;
+		--cp-accent: #89a081;
+		--cp-chip-bg: rgba(255,255,255,0.02);
+		--cp-shadow: 0 6px 18px rgba(0,0,0,0.5);
 		--cp-border: rgba(255,255,255,0.04);
 	}
 }
