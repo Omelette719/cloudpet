@@ -29,8 +29,6 @@ class CreateBucket extends Component
         try {
             $s3 = MiniStackService::getClient($accessKey, $secretKey);
 
-            DB::beginTransaction();
-
             // 2. Gunakan DB Transaction agar konsisten
             DB::beginTransaction();
 

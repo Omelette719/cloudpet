@@ -80,12 +80,25 @@
 
     {{-- Manajemen Bucket IaaS --}}
     <div style="margin-top: 2rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
             <h3 class="cp-section-title">📦 Daftar Storage Bucket Saya</h3>
             
             {{-- Tombol Pembuatan Bucket (Memanggil Komponen CreateBucket) --}}
             @livewire('bucket.create-bucket')
         </div>
+
+        {{-- TAMBAHKAN BLOK PESAN INI: Untuk menangkap feedback hasil penghapusan --}}
+        @if (session()->has('message'))
+            <div style="background: #e8f5e9; color: #2e7d32; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-weight: 700; border: 1px solid #c8e6c9;">
+                {{ session('message') }}
+            </div>
+        @endif
+        @if (session()->has('error'))
+            <div style="background: #ffebee; color: #c62828; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-weight: 700; border: 1px solid #ffcdd2;">
+                {{ session('error') }}
+            </div>
+        @endif
+        {{-- AKHIR BLOK PESAN --}}
         
         <div class="cp-table-wrap">
             <div style="overflow-x: auto;">
@@ -96,7 +109,6 @@
                             <th>Access Key</th>
                             <th>Secret Key</th>
                             <th>Dibuat Pada</th>
-                            <th style="text-align: right;">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -110,20 +122,10 @@
                                 <td><code style="background: #f0f4ec; padding: 0.2rem 0.4rem; border-radius: 4px;">{{ $bucket->access_key }}</code></td>
                                 <td><code style="background: #f0f4ec; padding: 0.2rem 0.4rem; border-radius: 4px;">{{ $bucket->secret_key }}</code></td>
                                 <td style="color: #809279; font-size: 0.75rem; font-weight: 600;">{{ $bucket->created_at->format('d M Y H:i') }}</td>
-                                <td style="text-align: right;">
-                                    {{-- Tombol Terminasi (Hapus) --}}
-                                    <button 
-                                        wire:click="deleteBucket('{{ $bucket->id }}')" 
-                                        wire:confirm="Yakin ingin menghapus bucket {{ $bucket->bucket_name }} secara permanen? Semua data di dalamnya akan hilang."
-                                        style="background: none; border: none; color: #d32f2f; font-weight: 700; font-size: 0.85rem; cursor: pointer; text-decoration: underline;"
-                                    >
-                                        Hapus
-                                    </button>
-                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" style="padding: 2.3rem 0.9rem; text-align: center; color: #8ca582; font-weight: 700;">
+                                <td colspan="4" style="padding: 2.3rem 0.9rem; text-align: center; color: #8ca582; font-weight: 700;">
                                     <span style="font-size: 2rem; display: block; margin-bottom: 0.4rem;">☁️</span>
                                     Anda belum memiliki bucket. Silakan buat bucket baru.
                                 </td>

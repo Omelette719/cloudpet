@@ -12,7 +12,6 @@ class UploadFile extends Component
 {
     use WithFileUploads;
 
-    // Type Hinting untuk mencegah error
     public $file = null; 
     public StorageBucket $bucket;
     public string $prefix = '';
@@ -23,16 +22,19 @@ class UploadFile extends Component
         $this->prefix = $prefix;
     }
 
-    public function upload(): void
+    // ✅ UBAH NAMA FUNGSI JADI saveFile (menghindari bentrok dengan core Livewire)
+    public function saveFile(): void
     {
-        $this->validate(['file' => 'required|max:10240']);
+        // ✅ Batasan ukuran (max) sudah dihapus dari validasi
+        $this->validate([
+            'file' => 'required'
+        ], [
+            'file.required' => 'Pilih file terlebih dahulu sebelum klik upload!'
+        ]);
 
-        // Memanggil Service Class agar tidak duplikasi
         $s3 = MiniStackService::getClient($this->bucket->access_key, $this->bucket->secret_key);
         $finalKey = $this->prefix . $this->file->getClientOriginalName();
-
-        // Membuka file stream
-        $stream = fopen($this->file->getRealPath(), 'r');
+        $stream = $this->file->readStream(); 
 
         try {
             $s3->putObject([
@@ -42,23 +44,19 @@ class UploadFile extends Component
             ]);
 
             $this->dispatch('file-uploaded');
-            
-            // Reset file yang aman untuk Livewire 3
             $this->file = null; 
-            session()->flash('message', '✅ File berhasil diupload!');
+            session()->flash('message', '✅ File berhasil diunggah!');
 
         } catch (\Exception $e) {
-            // Error Handling
-            Log::error('Upload gagal: ' . $e->getMessage());
-            session()->flash('error', '❌ Gagal mengunggah file: Server penyimpanan menolak.');
+            \Illuminate\Support\Facades\Log::error('Upload gagal: ' . $e->getMessage());
+            session()->flash('error', '❌ Gagal mengunggah file.');
         } finally {
-            // Mencegah Memory Leak: Pastikan file pointer selalu ditutup meskipun upload gagal
             if (is_resource($stream)) {
                 fclose($stream);
             }
         }
     }
-
+    
     public function render()
     {
         return view('livewire.bucket.upload-file');
