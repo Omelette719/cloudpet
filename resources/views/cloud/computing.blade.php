@@ -199,25 +199,54 @@
                     }
                     if (it.metadata && it.metadata.jupyter_host_port && it.metadata.jupyter_token) {
                         const link = document.createElement('a');
-                        link.style.display = 'block';
+                        link.style.display = 'inline-block';
                         link.style.marginTop = '8px';
+                        link.style.marginRight = '8px';
                         link.style.fontSize = '0.9rem';
                         link.style.color = '#9fe6b0';
+                        link.style.textDecoration = 'underline';
                         link.setAttribute('target','_blank');
                         link.href = `http://localhost:${it.metadata.jupyter_host_port}/?token=${it.metadata.jupyter_token}`;
-                        link.innerText = `Open Jupyter Notebook (localhost:${it.metadata.jupyter_host_port})`;
+                        link.innerText = `Buka Jupyter (:${it.metadata.jupyter_host_port})`;
                         node.appendChild(link);
+
+                        // Auto-open once when instance first becomes RUNNING in this browser session
+                        try {
+                            const key = 'cloudpet_opened_' + it.id;
+                            if (it.status === 'RUNNING' && !sessionStorage.getItem(key)) {
+                                window.open(link.href, '_blank');
+                                sessionStorage.setItem(key, '1');
+                            }
+                        } catch (e) { /* ignore sessionStorage errors */ }
                     }
                     if (it.metadata && it.metadata.codeserver_host_port && it.metadata.codeserver_password) {
                         const link2 = document.createElement('a');
-                        link2.style.display = 'block';
+                        link2.style.display = 'inline-block';
                         link2.style.marginTop = '6px';
+                        link2.style.marginRight = '8px';
                         link2.style.fontSize = '0.9rem';
                         link2.style.color = '#9fe6b0';
                         link2.setAttribute('target','_blank');
                         link2.href = `http://localhost:${it.metadata.codeserver_host_port}`;
-                        link2.innerText = `Open code-server (localhost:${it.metadata.codeserver_host_port}) - password: ${it.metadata.codeserver_password}`;
+                        link2.innerText = `Buka IDE (:${it.metadata.codeserver_host_port})`;
                         node.appendChild(link2);
+
+                        const info = document.createElement('div');
+                        info.style.display = 'inline-block';
+                        info.style.marginTop = '6px';
+                        info.style.fontSize = '0.78rem';
+                        info.style.color = '#b9d7a8';
+                        info.innerText = `(password: ${it.metadata.codeserver_password})`;
+                        node.appendChild(info);
+
+                        // Auto-open once when instance first becomes RUNNING in this browser session
+                        try {
+                            const key2 = 'cloudpet_opened_' + it.id;
+                            if (it.status === 'RUNNING' && !sessionStorage.getItem(key2)) {
+                                window.open(link2.href, '_blank');
+                                sessionStorage.setItem(key2, '1');
+                            }
+                        } catch (e) { /* ignore sessionStorage errors */ }
                     }
                     wrap.appendChild(node);
                 });
