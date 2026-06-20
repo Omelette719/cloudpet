@@ -210,3 +210,16 @@ tail -f storage/logs/laravel.log
 **Created:** June 2, 2026  
 **Version:** 1.0.0  
 **License:** MIT
+
+---
+
+## Cloud Compute & Migrations
+
+- This branch adds a Cloud Compute demo integrated with a local MiniStack (AWS-compatible) endpoint. See `app/Services/ComputeService.php` for the ECS-based provisioning logic.
+- A new migration was added for password reset tokens: `database/migrations/2026_06_20_000001_create_password_reset_tokens_table.php`. Run migrations before running tests or starting the app:
+
+```bash
+php artisan migrate --force
+```
+
+Optional smoke-test script: `scripts/compute_smoke.php` — bootstraps the app and creates a demo compute instance using MiniStack.
