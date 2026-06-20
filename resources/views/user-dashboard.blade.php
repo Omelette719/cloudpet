@@ -81,6 +81,6 @@
     </div>
 
     {{-- Upload Pet Photo Demo --}}
-    @livewire('UploadPetPhoto')
+    @livewire('bucket.create-bucket')
 
 </div>
