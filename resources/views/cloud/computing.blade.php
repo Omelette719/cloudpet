@@ -126,6 +126,9 @@
         </div>
     </div>
 
+    <!-- Toast container -->
+    <div id="cp-toast-container" style="position:fixed; right:20px; bottom:20px; z-index:10000; display:flex; flex-direction:column; gap:8px; pointer-events:none;"></div>
+
     <script>
         (function(){
             const API = {
@@ -151,6 +154,25 @@
                 function cancelHandler() { cleanup(); }
                 ok.addEventListener('click', okHandler);
                 cancel.addEventListener('click', cancelHandler);
+            }
+
+            // toast helper
+            function showToast(message, timeout = 4000) {
+                try {
+                    const container = document.getElementById('cp-toast-container');
+                    const t = document.createElement('div');
+                    t.style.pointerEvents = 'auto';
+                    t.style.background = 'linear-gradient(90deg,#0b3b22,#143f2b)';
+                    t.style.color = '#e6f9ea';
+                    t.style.padding = '10px 14px';
+                    t.style.borderRadius = '8px';
+                    t.style.boxShadow = '0 6px 18px rgba(2,6,23,0.6)';
+                    t.style.fontWeight = '700';
+                    t.style.fontSize = '0.95rem';
+                    t.innerText = message;
+                    container.appendChild(t);
+                    setTimeout(() => { t.style.transition = 'opacity 300ms'; t.style.opacity = '0'; setTimeout(()=> t.remove(), 350); }, timeout);
+                } catch(e) { /* ignore */ }
             }
 
             function renderItems(items){
@@ -214,6 +236,7 @@
                         try {
                             const key = 'cloudpet_opened_' + it.id;
                             if (it.status === 'RUNNING' && !sessionStorage.getItem(key)) {
+                                showToast('Membuka Jupyter...');
                                 window.open(link.href, '_blank');
                                 sessionStorage.setItem(key, '1');
                             }
@@ -243,6 +266,7 @@
                         try {
                             const key2 = 'cloudpet_opened_' + it.id;
                             if (it.status === 'RUNNING' && !sessionStorage.getItem(key2)) {
+                                showToast('Membuka IDE (code-server)...');
                                 window.open(link2.href, '_blank');
                                 sessionStorage.setItem(key2, '1');
                             }
