@@ -21,10 +21,12 @@
             <span>Dashboard</span>
         </a>
 
-        <a class="cp-side-link soon">
+        <a href="{{ route('cloud.index') }}"
+              wire:navigate
+           class="cp-side-link {{ request()->routeIs('cloud.*') ? 'active' : '' }}">
             <span>☁️</span>
             <span>Layanan Cloud</span>
-            <span class="cp-chip">Soon</span>
+            <span class="cp-chip">Beta</span>
         </a>
         <a class="cp-side-link soon">
             <span>💾</span>

@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'ministack' => [
+        'url' => env('MINISTACK_URL'),
+        'key' => env('MINISTACK_API_KEY'),
+    ],
+
 ];

@@ -19,6 +19,12 @@
     --cp-shadow: 0 16px 44px rgba(34, 48, 31, 0.16);
 }
 
+/* Ensure consistent text size adjustment across browsers */
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
 .theme-admin {
     --cp-card: rgba(48, 70, 43, 0.62);
     --cp-primary-start: #8db96a;
