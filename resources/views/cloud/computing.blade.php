@@ -52,6 +52,12 @@
                                 <div id="cp-price" style="font-weight:900; color:#fff; font-size:1.05rem;">Rp0/h</div>
                             </div>
                         </div>
+                        <div style="margin-top:8px; display:flex; align-items:center; gap:12px;">
+                            <label style="display:flex; gap:8px; align-items:center; color:#b9d7a8; font-weight:700;">
+                                <input id="cp-auto-open" type="checkbox" />
+                                <span style="font-size:0.9rem;">Auto-open runtime saat RUNNING</span>
+                            </label>
+                        </div>
                     </div>
 
                     <div style="background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:10px; border-radius:8px;">
@@ -175,6 +181,26 @@
                 } catch(e) { /* ignore */ }
             }
 
+            // auto-open preference (persisted in localStorage)
+            const AUTO_OPEN_KEY = 'cloudpet_auto_open';
+            function isAutoOpenEnabled(){
+                try {
+                    const v = localStorage.getItem(AUTO_OPEN_KEY);
+                    if (v === null) return true; // default enabled
+                    return v === '1';
+                } catch(e){ return true; }
+            }
+            // initialize checkbox state
+            try {
+                const cb = document.getElementById('cp-auto-open');
+                if (cb) {
+                    cb.checked = isAutoOpenEnabled();
+                    cb.addEventListener('change', ()=>{
+                        try { localStorage.setItem(AUTO_OPEN_KEY, cb.checked ? '1' : '0'); } catch(e){}
+                    });
+                }
+            } catch(e){}
+
             function renderItems(items){
                 const wrap = document.getElementById('cp-instances-wrap');
                 wrap.innerHTML='';
@@ -235,7 +261,7 @@
                         // Auto-open once when instance first becomes RUNNING in this browser session
                         try {
                             const key = 'cloudpet_opened_' + it.id;
-                            if (it.status === 'RUNNING' && !sessionStorage.getItem(key)) {
+                            if (it.status === 'RUNNING' && !sessionStorage.getItem(key) && isAutoOpenEnabled()) {
                                 showToast('Membuka Jupyter...');
                                 window.open(link.href, '_blank');
                                 sessionStorage.setItem(key, '1');
@@ -265,7 +291,7 @@
                         // Auto-open once when instance first becomes RUNNING in this browser session
                         try {
                             const key2 = 'cloudpet_opened_' + it.id;
-                            if (it.status === 'RUNNING' && !sessionStorage.getItem(key2)) {
+                            if (it.status === 'RUNNING' && !sessionStorage.getItem(key2) && isAutoOpenEnabled()) {
                                 showToast('Membuka IDE (code-server)...');
                                 window.open(link2.href, '_blank');
                                 sessionStorage.setItem(key2, '1');
