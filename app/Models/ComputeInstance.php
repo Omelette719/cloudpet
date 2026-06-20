@@ -8,18 +8,24 @@ use Illuminate\Database\Eloquent\Model;
 class ComputeInstance extends Model
 {
     use HasFactory;
-
-    protected $keyType = 'string';
-    public $incrementing = false;
-
     protected $fillable = [
         'id',
         'user_id',
-        'plan_id',
+        'plan',
         'name',
         'os',
         'ip_address',
         'status',
+        'metadata',
+    ];
+
+    protected $casts = [
+        'metadata' => 'array',
+        'started_at' => 'datetime',
+        'stopped_at' => 'datetime',
+        'usage_hours' => 'float',
+        'price_per_hour' => 'float',
+        'cost' => 'float',
     ];
 
     public function user()

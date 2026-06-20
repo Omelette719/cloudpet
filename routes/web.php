@@ -45,6 +45,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/cloud/api/instances', [\App\Http\Controllers\Cloud\ComputeController::class, 'store'])->name('cloud.api.instances.store');
     Route::post('/cloud/api/instances/{id}/action', [\App\Http\Controllers\Cloud\ComputeController::class, 'action'])->name('cloud.api.instances.action');
 
+    // Admin export for usage CSV
+    Route::get('/cloud/api/usage/export', [\App\Http\Controllers\Cloud\ComputeController::class, 'exportUsage'])->middleware('role:admin')->name('cloud.api.usage.export');
+
     // Compatibility route names for tests and external expectations
     Route::get('/app/dashboard', UserDashboard::class)
         ->middleware('auth')

@@ -47,6 +47,26 @@ services:
     volumes:
       - ministack-data:/var/lib/ministack
 
+  jupyter:
+    image: jupyter/minimal-notebook:latest
+    restart: unless-stopped
+    ports:
+      - "28170:8888" # Map host 28170 -> container 8888
+    environment:
+      JUPYTER_TOKEN: d3816299e87b6aba229af302
+    volumes:
+      - ./notebooks:/home/jovyan/work
+
+  code-server:
+    image: codercom/code-server:latest
+    restart: unless-stopped
+    ports:
+      - "29669:8080" # Map host 29669 -> container 8080
+    environment:
+      PASSWORD: 3a44037ee2b09ec3
+    volumes:
+      - ./code:/home/coder/project
+
 volumes:
   minio_data:
     driver: local

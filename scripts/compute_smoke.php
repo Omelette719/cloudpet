@@ -17,7 +17,8 @@ if (! $user) {
 }
 
 $svc = app(ComputeService::class);
-$instance = $svc->createInstance($user, 'micro');
+$plan = $argv[1] ?? 'micro';
+$instance = $svc->createInstance($user, $plan);
 
 // reload from DB to get database-generated id irrespective of model key settings
 $fresh = \App\Models\ComputeInstance::where('name', $instance->name)->orderBy('created_at', 'desc')->first();

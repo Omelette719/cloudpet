@@ -1,0 +1,5 @@
+id,name,user_email,plan,status,started_at,stopped_at,usage_hours,price_per_hour,cost
+17,vm-6a36cc29ba63b,azwinhakim57@gmail.com,micro,TERMINATED,"2026-06-20 17:21:45","2026-06-20 17:21:45",0,71,0
+16,vm-6a36cb3ab41e8,azwinhakim57@gmail.com,jupyter,TERMINATED,"2026-06-20 17:17:46","2026-06-20 17:17:46",0,525,0
+15,vm-6a36c4eabe9af,azwinhakim57@gmail.com,code-server,RUNNING,,,,,
+14,vm-6a36c4994095d,azwinhakim57@gmail.com,jupyter,RUNNING,,,,,
