@@ -159,6 +159,73 @@ class ComputeService
                     $spec['hostPort'] = rand(29000, 29999);
                 }
 
+                // Developer convenience: if this is an interactive runtime (jupyter/code-server)
+                // and we prefer host-bound containers for direct browser access, run the
+                // runtime locally with `docker run` so the host port is actually bound.
+                $chosenRuntime = $requestedRuntime ?? $plan;
+                if (in_array($chosenRuntime, ['jupyter', 'code-server'])) {
+                    $forceLocal = env('COMPUTE_FORCE_LOCAL_RUNTIME', true);
+                    if ($forceLocal) {
+                        try {
+                            $hostPort = $spec['hostPort'] ?? ($chosenRuntime === 'jupyter' ? rand(28000, 28999) : rand(29000, 29999));
+                            if ($chosenRuntime === 'jupyter') {
+                                $token = $spec['jupyter_token'] ?? bin2hex(random_bytes(12));
+                                $containerPort = 8888;
+                                $image = $spec['image'] ?? 'jupyter/minimal-notebook';
+                                $envArg = '-e JUPYTER_TOKEN=' . escapeshellarg($token);
+                            } else {
+                                $password = $spec['codeserver_password'] ?? bin2hex(random_bytes(8));
+                                $containerPort = 8080;
+                                $image = $spec['image'] ?? 'codercom/code-server:latest';
+                                $envArg = '-e PASSWORD=' . escapeshellarg($password);
+                            }
+
+                            $containerName = 'cloudpet_instance_' . $instance->id . '_' . $chosenRuntime;
+                            $volumesArg = '';
+                            if ($persistent) {
+                                $hostPath = storage_path('app/compute/' . $instance->id);
+                                if (! is_dir($hostPath)) {
+                                    mkdir($hostPath, 0755, true);
+                                }
+                                $volumesArg = '-v ' . escapeshellarg($hostPath) . ':/data';
+                                $instance->metadata = array_merge($instance->metadata ?? [], ['volumePath' => $hostPath]);
+                            }
+
+                            $cmd = sprintf('docker run -d --rm --name %s -p %d:%d %s %s %s',
+                                escapeshellarg($containerName),
+                                $hostPort,
+                                $containerPort,
+                                $envArg,
+                                $volumesArg,
+                                $image
+                            );
+
+                            exec($cmd, $out, $rc);
+                            if ($rc === 0) {
+                                $containerId = trim($out[0] ?? '');
+                                $instance->status = 'RUNNING';
+                                $instance->metadata = array_merge($instance->metadata ?? [], [
+                                    'host_container_id' => $containerId,
+                                    'taskArn' => null,
+                                    'taskDefinition' => null,
+                                    'plan' => $plan,
+                                    'spec' => $spec,
+                                ]);
+                                if ($chosenRuntime === 'jupyter') {
+                                    $instance->metadata = array_merge($instance->metadata, ['jupyter_host_port' => $hostPort, 'jupyter_token' => $token]);
+                                } else {
+                                    $instance->metadata = array_merge($instance->metadata, ['codeserver_host_port' => $hostPort, 'codeserver_password' => $password]);
+                                }
+                                $instance->save();
+                                return $instance;
+                            }
+                        } catch (\Exception $e) {
+                            // fallback to normal Ministack/ECS provisioning below
+                            logger()->warning('Local runtime docker run failed: ' . $e->getMessage());
+                        }
+                    }
+                }
+
                 // Register a minimal task definition that runs an Alpine sleep loop
                 $family = 'cloudpet-instance-' . $instance->id;
                 $containerDef = [
