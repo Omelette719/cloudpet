@@ -1,10 +1,67 @@
 @component('layouts.app')
-    <div>
+    <style>
+        :root{
+            --cp-bg: #fff8f2;
+            --cp-panel: #fff;
+            --cp-card: #fbf7f2;
+            --cp-text: #0b1220;
+            --cp-muted: #6f8b69;
+            --cp-accent: #8db96a;
+            --cp-chip-bg: rgba(11,18,32,0.06);
+            --cp-shadow: 0 6px 20px rgba(2,6,23,0.06);
+            --cp-border: rgba(255,255,255,0.04);
+        }
+        @media (prefers-color-scheme: dark){
+            :root{
+                --cp-bg: #07120b; /* deep green-black */
+                --cp-panel: #062017; /* soft dark */
+                --cp-card: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+                --cp-text: #eaf6ea;
+                --cp-muted: #9fe6b0;
+                --cp-accent: #8db96a;
+                --cp-chip-bg: rgba(255,255,255,0.03);
+                --cp-shadow: 0 8px 28px rgba(0,0,0,0.6);
+                --cp-border: rgba(255,255,255,0.04);
+            }
+        }
+
+        .cp-page {
+            background: var(--cp-bg);
+            color: var(--cp-text);
+            transition: background 240ms ease, color 240ms ease;
+            padding: 1rem 1.25rem 3rem 1.25rem;
+        }
+        .cp-banner{
+            background: linear-gradient(90deg, rgba(13,30,18,0.98), rgba(7,18,11,0.95));
+            color: var(--cp-text);
+            padding: 1.2rem 1.4rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            box-shadow: var(--cp-shadow);
+        }
+        .cp-card{
+            background: var(--cp-panel);
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: var(--cp-shadow);
+            border: 1px solid var(--cp-border);
+        }
+        .cp-auth-card{ background: var(--cp-card); padding:12px; border-radius:12px; box-shadow: none; }
+        .cp-chip{ background: var(--cp-chip-bg); padding:6px 10px; border-radius:999px; font-weight:800; display:inline-block; color:var(--cp-text); }
+        .cp-btn{ background:var(--cp-accent); color:#04220c; border-radius:8px; padding:8px 12px; border:none; cursor:pointer; font-weight:800; }
+        .cp-btn.secondary{ background:transparent; color:var(--cp-text); border:1px solid var(--cp-border); }
+        #cp-instances-wrap{ display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:1rem; }
+        .cp-instance-card{ background:var(--cp-panel); border-radius:12px; padding:12px; box-shadow:var(--cp-shadow); border:1px solid var(--cp-border); }
+        .cp-instance-actions button{ margin-right:8px; }
+        a.cp-link{ color:var(--cp-accent); font-weight:800; text-decoration:underline; }
+    </style>
+
+    <div class="cp-page">
         <div class="cp-banner">
-            <div style="position: relative; z-index:1;">
+                <div style="position: relative; z-index:1;">
                 <p>Cloud Computing</p>
                 <h2>Kelola Instance Virtual</h2>
-                <p>Pilih plan, buat instance, dan kelola siklus hidup VM Anda. (Demo frontend-only)</p>
+                <p style="color:var(--cp-muted);">Pilih plan, buat instance, dan kelola siklus hidup VM Anda. (Demo frontend-only)</p>
             </div>
         </div>
 
@@ -205,10 +262,13 @@
                 const wrap = document.getElementById('cp-instances-wrap');
                 wrap.innerHTML='';
                 if(!items || items.length===0){ wrap.innerHTML = '<div style="grid-column:1/-1;color:#7d9a77;font-weight:700;padding:1rem;">Belum ada instance. Pilih plan dan buat instance.</div>'; return; }
-                const tpl = document.getElementById('cp-instance-template').innerHTML;
+                    const tpl = document.getElementById('cp-instance-template').innerHTML;
                 items.forEach(it=>{
                     const html = tpl.replace(/__NAME__/g,it.name).replace('__PLAN__',it.plan).replace(/__STATUS__/g,it.status);
                     const el = document.createElement('div'); el.innerHTML = html; const node = el.firstElementChild;
+                    // make instance card look nicer
+                    node.classList.add('cp-instance-card');
+                    node.querySelector('.cp-chip').style.background = 'var(--cp-chip-bg)';
                     node.querySelector('.cp-action-start').addEventListener('click', ()=>{ API.action(it.id,'start').then(()=>refresh()); });
                     node.querySelector('.cp-action-stop').addEventListener('click', ()=>{ API.action(it.id,'stop').then(()=>refresh()); });
                     node.querySelector('.cp-action-term').addEventListener('click', ()=>{ showConfirm('Yakin ingin menghapus instance ini?', ()=>{ API.action(it.id,'terminate').then(()=>refresh()); }); });
