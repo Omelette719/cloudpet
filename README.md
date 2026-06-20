@@ -305,3 +305,45 @@ Security & notes
 	- Review cost/pricing logic and currency handling before billing real customers.
 
 If you want, I can add an admin UI to manage `stripe_subscription_item_id` per user, or commit and push these changes to the `compute` branch.
+
+## 🔬 Local verification checklist (Compute)
+
+Use these quick steps to validate interactive runtimes and auto-open behavior on your development machine:
+
+- Start required services (MiniStack + runtimes):
+
+```bash
+# start all services (ministack, minio, jupyter, code-server)
+docker compose up -d
+```
+
+- Run migrations and start dev server:
+
+```bash
+php artisan migrate --force
+npm run dev   # (Vite watches assets; open http://localhost:5173 if needed)
+```
+
+- Create and exercise a Jupyter instance (smoke test):
+
+```bash
+php scripts/compute_smoke.php jupyter
+# or create via UI: /cloud/computing
+```
+
+- Verify the instance metadata and host access:
+
+```bash
+# check instance metadata in DB (jupyter_host_port, token)
+php artisan tinker --execute="\App\Models\ComputeInstance::latest()->first()->metadata"
+
+# verify host port is listening and respond
+curl -I http://localhost:<jupyter_host_port>/lab
+```
+
+- Notes & toggles:
+	- `COMPUTE_FORCE_LOCAL_RUNTIME=true` (env) forces `docker run` fallback so runtimes bind to `localhost` for easy access.
+	- Auto-open preference stored in browser `localStorage` key `cloudpet_auto_open` (`'1'` = enabled).
+	- Default compose host ports: Jupyter `28171`, code-server `29670` (if you start them with `docker compose up -d jupyter code-server`).
+
+If you want, I can also add a short troubleshooting section to this README that lists common failure modes (port collisions, MiniStack networking, or missing tokens).
