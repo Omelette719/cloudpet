@@ -34,6 +34,21 @@ services:
       echo 'MinIO setup completed successfully!';
       "
 
+  ministack:
+    image: ministackorg/ministack:latest
+    container_name: ministack
+    restart: unless-stopped
+    ports:
+      - "4566:4566"   # MiniStack API (default)
+      - "15432:15432" # RDS Postgres (optional)
+      - "16379:16379" # ElastiCache Redis (optional)
+    environment:
+      - MINISTACK_LOG_LEVEL=info
+    volumes:
+      - ministack-data:/var/lib/ministack
+
 volumes:
   minio_data:
+    driver: local
+  ministack-data:
     driver: local

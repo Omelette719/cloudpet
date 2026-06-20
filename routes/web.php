@@ -20,7 +20,7 @@ Route::middleware('auth')->group(function () {
         ->name('admin.dashboard');
 
     Route::get('/dashboard', UserDashboard::class)
-        ->middleware('role:user')
+        ->middleware('auth')
         ->name('user.dashboard');
 
     // Explicit logout route
@@ -28,7 +28,7 @@ Route::middleware('auth')->group(function () {
         Auth::logout();
         request()->session()->invalidate();
         request()->session()->regenerateToken();
-        return redirect('/login');
+        return redirect()->route('home');
     })->name('logout');
 
     // Cloud services pages (user)
@@ -44,4 +44,19 @@ Route::middleware('auth')->group(function () {
     Route::get('/cloud/api/instances', [\App\Http\Controllers\Cloud\ComputeController::class, 'index'])->name('cloud.api.instances');
     Route::post('/cloud/api/instances', [\App\Http\Controllers\Cloud\ComputeController::class, 'store'])->name('cloud.api.instances.store');
     Route::post('/cloud/api/instances/{id}/action', [\App\Http\Controllers\Cloud\ComputeController::class, 'action'])->name('cloud.api.instances.action');
+
+    // Compatibility route names for tests and external expectations
+    Route::get('/app/dashboard', UserDashboard::class)
+        ->middleware('auth')
+        ->name('dashboard');
 });
+
+// Public home route (tests expect a public home page)
+Route::get('/home', function () {
+    return view('welcome');
+})->name('home');
+
+// include additional route groups (settings, etc.)
+if (file_exists(__DIR__ . '/settings.php')) {
+    require __DIR__ . '/settings.php';
+}

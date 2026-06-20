@@ -8,7 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('compute_instances', function (Blueprint $table) {
+        if (! Schema::hasTable('compute_instances')) {
+            Schema::create('compute_instances', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->uuid('plan_id')->nullable();
@@ -18,7 +19,8 @@ return new class extends Migration
             $table->string('ip_address', 45)->nullable();
             $table->enum('status', ['PROVISIONING', 'RUNNING', 'STOPPED', 'TERMINATED'])->default('PROVISIONING')->index();
             $table->timestamps();
-        });
+            });
+        }
     }
 
     public function down(): void

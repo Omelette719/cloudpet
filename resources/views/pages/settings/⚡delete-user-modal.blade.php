@@ -1,8 +1,8 @@
 <?php
 
 use App\Concerns\PasswordValidationRules;
-use App\Livewire\Actions\Logout;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
 
 new class extends Component {
@@ -13,13 +13,22 @@ new class extends Component {
     /**
      * Delete the currently authenticated user.
      */
-    public function deleteUser(Logout $logout): void
+    public function deleteUser(): void
     {
         $this->validate([
             'password' => $this->currentPasswordRules(),
         ]);
 
-        tap(Auth::user(), $logout(...))->delete();
+        $user = Auth::user();
+
+        if (! Hash::check($this->password, $user->password)) {
+            $this->addError('password', __('The provided password does not match our records.'));
+            return;
+        }
+
+        Auth::logout();
+
+        $user->delete();
 
         $this->redirect('/', navigate: true);
     }
