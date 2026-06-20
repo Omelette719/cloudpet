@@ -57,16 +57,7 @@ class ComputeService
         $meta['cost'] = $instance->cost;
         $instance->metadata = $meta;
 
-        // Attempt to report usage to Stripe if configured and user has subscription item
-        try {
-            $user = $instance->user()->first();
-            if ($user && config('services_stripe.enabled')) {
-                $billing = app(\App\Services\StripeBillingService::class);
-                $billing->recordUsage($user, $instance);
-            }
-        } catch (\Exception $e) {
-            logger()->error('Stripe billing attempt failed: ' . $e->getMessage());
-        }
+        // Stripe integration removed: server computes and stores authoritative cost only.
     }
 
     public function createInstance($user, $plan, array $options = [])

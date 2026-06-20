@@ -277,19 +277,7 @@ Configuration & pricing
 
 Stripe (optional)
 
-- Stripe Usage Billing integration is included as a POC but disabled by default.
-- To enable automatic usage reporting to Stripe:
-
-	1. Set in `.env`:
-
-		 ```env
-		 STRIPE_ENABLED=true
-		 STRIPE_API_KEY=sk_test_xxx
-		 ```
-
-	2. Ensure each user has a `stripe_subscription_item_id` (the subscription item for a metered price in Stripe).
-
-	3. Usage is reported as minutes (quantity = usage_hours * 60) to the subscription item.
+- Stripe Usage Billing integration was included as a POC but has been removed per project preference.
 
 Security & notes
 
