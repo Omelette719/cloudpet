@@ -215,6 +215,19 @@
                     node.querySelector('.cp-action-start').addEventListener('click', ()=>{ API.action(it.id,'start').then(()=>refresh()); });
                     node.querySelector('.cp-action-stop').addEventListener('click', ()=>{ API.action(it.id,'stop').then(()=>refresh()); });
                     node.querySelector('.cp-action-term').addEventListener('click', ()=>{ showConfirm('Yakin ingin menghapus instance ini?', ()=>{ API.action(it.id,'terminate').then(()=>refresh()); }); });
+                    // archive button visible when TERMINATED
+                    if (it.status === 'TERMINATED') {
+                        const arch = document.createElement('button');
+                        arch.className = 'cp-action-archive cp-btn';
+                        arch.style.background = '#6b7280';
+                        arch.style.color = '#fff';
+                        arch.style.padding = '8px 10px';
+                        arch.style.fontSize = '0.85rem';
+                        arch.style.marginLeft = '6px';
+                        arch.innerText = 'Archive';
+                        arch.addEventListener('click', ()=>{ showConfirm('Archive instance ini? (akan disembunyikan dari daftar)', ()=>{ API.action(it.id,'archive').then((res)=>{ if(res && res.deleted){ showToast('Instance diarsipkan'); } else { showToast('Gagal mengarsipkan'); } refresh(); }); }); });
+                        node.querySelector('.cp-action-term').after(arch);
+                    }
                     // show SSH and volume info if present
                     if (it.metadata && it.metadata.ssh_host_port) {
                         const ssh = document.createElement('div');

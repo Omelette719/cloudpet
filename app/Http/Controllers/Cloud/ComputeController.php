@@ -56,7 +56,20 @@ class ComputeController extends Controller
         $request->validate(['action' => 'required|string']);
         $user = $request->user();
         $instance = ComputeInstance::where('id', $id)->where('user_id', $user->id)->firstOrFail();
-        $result = $this->service->changeStatus($instance, $request->action);
+        $action = $request->action;
+
+        // handle archive (soft-delete) separately
+        if ($action === 'archive') {
+            // only allow archiving terminated instances
+            if ($instance->status !== 'TERMINATED') {
+                return response()->json(['deleted' => false, 'error' => 'instance must be TERMINATED before archiving'], 422);
+            }
+
+            $instance->delete();
+            return response()->json(['deleted' => true], 200);
+        }
+
+        $result = $this->service->changeStatus($instance, $action);
 
         // If service handled deletion, return its result
         if (is_array($result) && array_key_exists('deleted', $result)) {
