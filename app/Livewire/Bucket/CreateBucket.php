@@ -4,68 +4,63 @@ namespace App\Livewire\Bucket;
 
 use App\Models\StorageBucket;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB; // Ditambahkan untuk Transaksi DB
 use Illuminate\Support\Str;
+use Aws\S3\S3Client;
+use Aws\Exception\AwsException;
 use Livewire\Component;
+use App\Services\MiniStackService;
 
 class CreateBucket extends Component
 {
+    public $loading = false; // *** PERBARUAN: Penanganan Double-Click ***
+
     public function createBucket()
     {
+        $this->loading = true; // Aktifkan loading state
         $user = Auth::user();
 
-        // Pastikan konfigurasi env sudah diset
-        $apiUrl = env('MINISTACK_API_URL');
-        $apiToken = env('MINISTACK_API_TOKEN');
-
-        if (!$apiUrl || !$apiToken) {
-            session()->flash('error', 'Konfigurasi MiniStack belum diatur oleh Admin.');
-            return;
-        }
+        $accessKey  = 'AKIA' . strtoupper(Str::random(16));
+        $secretKey  = Str::random(32);
+        $cleanName  = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $user->name));
+        $bucketName = "cp-{$cleanName}-" . strtolower(Str::random(5));
 
         try {
-            // 1. Mengirim Request ke API MiniStack
-            $response = Http::withToken($apiToken)
-                ->timeout(15) // Timeout 15 detik untuk antisipasi proses IaaS
-                ->post("{$apiUrl}/api/v1/buckets", [
-                    'user_email' => $user->email,
-                    'user_name'  => $user->name,
-                    'region'     => 'id-1', // Sesuaikan jika ada multi-region
-                ]);
+            $s3 = MiniStackService::getClient($accessKey, $secretKey);
 
-            // 2. Cek apakah response dari MiniStack error (status 4xx atau 5xx)
-            if ($response->failed()) {
-                // Log response dari server untuk keperluan debugging admin
-                Log::error('MiniStack API Error: ' . $response->body());
-                throw new \Exception('API MiniStack menolak permintaan atau terjadi kesalahan server.');
-            }
+            DB::beginTransaction();
 
-            $data = $response->json('data');
+            // 2. Gunakan DB Transaction agar konsisten
+            DB::beginTransaction();
 
-            // 3. Validasi kembalian data dari MiniStack
-            if (!isset($data['bucket_name']) || !isset($data['access_key']) || !isset($data['secret_key'])) {
-                Log::error('Format response MiniStack tidak sesuai: ' . json_encode($data));
-                throw new \Exception('Data kredensial dari MiniStack tidak lengkap.');
-            }
+            // 3. Buat Bucket di MiniStack
+            $s3->createBucket(['Bucket' => $bucketName]);
 
-            // 4. Simpan kredensial ke database lokal CloudPet
+            // 4. Simpan ke Database
             StorageBucket::create([
                 'id'          => (string) Str::uuid(),
                 'user_id'     => $user->id,
-                'bucket_name' => $data['bucket_name'],
-                'access_key'  => $data['access_key'],
-                'secret_key'  => $data['secret_key'],
+                'bucket_name' => $bucketName,
+                'access_key'  => $accessKey,
+                'secret_key'  => $secretKey,
             ]);
 
-            session()->flash('message', '🎉 Bucket berhasil diprovisioning di MiniStack!');
-            
-            // Refresh halaman dashboard pengguna agar tabel terupdate
-            $this->redirectRoute('user.dashboard', navigate: true);
+            DB::commit(); // Simpan perubahan jika sukses semua
 
+            session()->flash('message', '🎉 Bucket berhasil dibuat!');
+            return $this->redirectRoute('user.dashboard', navigate: true);
+
+        } catch (AwsException $e) {
+            DB::rollBack(); // *** PERBARUAN: Rollback jika S3 gagal ***
+            Log::error('AWS SDK Error: ' . $e->getMessage());
+            session()->flash('error', 'Infrastruktur tidak merespon: ' . $e->getAwsErrorMessage());
         } catch (\Exception $e) {
-            Log::error('Gagal membuat bucket IaaS: ' . $e->getMessage());
-            session()->flash('error', 'Gagal membuat bucket: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Kesalahan Sistem: ' . $e->getMessage());
+            session()->flash('error', 'Terjadi kesalahan internal.');
+        } finally {
+            $this->loading = false; // Matikan loading state
         }
     }
 

@@ -99,6 +99,45 @@
                 </table>
             </div>
 
+            {{-- Pengawasan Infrastruktur IaaS --}}
+            <div style="margin-top: 3rem;">
+                <h3 class="cp-section-title">🗄️ Pengawasan MiniStack IaaS</h3>
+
+                <div class="cp-table-wrap">
+                    <div style="overflow-x: auto;">
+                        <table class="cp-table">
+                            <thead>
+                                <tr>
+                                    <th>Pemilik (User)</th>
+                                    <th>Nama Bucket</th>
+                                    <th>Endpoint (Region)</th>
+                                    <th>Dibuat Pada</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse(\App\Models\StorageBucket::with('user')->latest()->get() as $bucket)
+                                    <tr>
+                                        <td style="font-weight: 700; color: #45613f;">
+                                            {{ $bucket->user->animal_avatar ?? '👤' }} {{ $bucket->user->name ?? 'User Terhapus' }}
+                                        </td>
+                                        <td style="font-weight: 700;">{{ $bucket->bucket_name }}</td>
+                                        <td><code style="background: #f0f4ec; padding: 0.2rem 0.4rem; border-radius: 4px;">{{ env('MINISTACK_ENDPOINT') }} (id-1)</code></td>
+                                        <td style="color: #809279; font-size: 0.75rem; font-weight: 600;">{{ $bucket->created_at->format('d M Y H:i') }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" style="padding: 2.3rem 0.9rem; text-align: center; color: #8ca582; font-weight: 700;">
+                                            <span style="font-size: 2rem; display: block; margin-bottom: 0.4rem;">📦</span>
+                                            Belum ada bucket IaaS yang diprovisioning.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             @if($users->hasPages())
                 <div style="padding: 0.9rem 1rem; border-top: 1px solid #edf4e4;">
                     {{ $users->links() }}

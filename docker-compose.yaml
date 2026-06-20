@@ -1,39 +1,12 @@
 version: "3.8"
 
 services:
-  minio:
-    image: minio/minio:latest
+  ministack:
+    image: ministackorg/ministack:latest
+    container_name: ministack_iaas
     ports:
-      - "9000:9000" # Port API
-      - "8900:8900" # Port Web UI / Console
-    environment:
-      MINIO_ROOT_USER: cloudpet_user
-      MINIO_ROOT_PASSWORD: cloudpet_password
-    command: server /data --console-address ":8900"
+      - "4566:4566"
     volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Service untuk membuat bucket otomatis
-  minio-setup:
-    image: minio/mc:latest
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      echo 'Setting up MinIO...';
-      /usr/bin/mc --version;
-      /usr/bin/mc alias set myminio http://minio:9000 cloudpet_user cloudpet_password --api S3v4;
-      /usr/bin/mc mb myminio/cloudpet-bucket --ignore-existing;
-      /usr/bin/mc anonymous set public myminio/cloudpet-bucket;
-      echo 'MinIO setup completed successfully!';
-      "
-
-volumes:
-  minio_data:
-    driver: local
+      # Baris ini yang akan menyimpan data fisik secara permanen!
+      - ./ministack_data:/tmp/ministack
+    restart: unless-stopped

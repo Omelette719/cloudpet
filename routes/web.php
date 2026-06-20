@@ -4,6 +4,7 @@ use App\Livewire\Auth\Login;
 use App\Livewire\Auth\Register;
 use App\Livewire\Dashboard\AdminDashboard;
 use App\Livewire\Dashboard\UserDashboard;
+use App\Livewire\Bucket\BucketManager;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -30,4 +31,8 @@ Route::middleware('auth')->group(function () {
         request()->session()->regenerateToken();
         return redirect('/login');
     })->name('logout');
+
+Route::get('/bucket/{id}', BucketManager::class)
+    ->middleware(['auth', 'role:user'])
+    ->name('bucket.manager');
 });
