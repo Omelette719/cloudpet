@@ -240,10 +240,14 @@ php artisan migrate --force
 GET /cloud/computing
 ```
 
-4. Create an instance via the UI (choose runtime, vRAM, vCPU). Interactive runtimes exposed on the host by docker-compose:
+4. Create an instance via the UI (choose runtime, vRAM, vCPU). Interactive runtimes can be exposed on the host in two ways:
 
-- Jupyter: http://localhost:28170/?token=... (if running via `docker compose up`)
-- code-server: http://localhost:29669/ (password shown in UI / metadata)
+- Run the demo runtimes directly via `docker compose` (recommended for local dev):
+
+	- Jupyter: http://localhost:28171/?token=... (when `docker compose up -d jupyter`)
+	- code-server: http://localhost:29670/ (when `docker compose up -d code-server`, password shown in UI / metadata)
+
+- Or let the compute provisioning create a runtime via MiniStack/ECS. In that case the runtime may be started inside MiniStack's network and the host port will be recorded in instance metadata (e.g. `jupyter_host_port`). When running via MiniStack the host port may not always be directly reachable from your host — for local developer convenience the service now attempts to start interactive runtimes with `docker run` on the host (see below).
 
 Smoke tests and usage export
 
@@ -274,6 +278,20 @@ Configuration & pricing
 	- `COMPUTE_VRAM_RATE` (Rp per GB)
 
 - The UI calculates an estimate client-side; the server computes and stores authoritative `price_per_hour`, `usage_hours`, and `cost` when instances stop/terminate.
+
+Interactive runtimes & auto-open (developer convenience)
+
+- By default, for interactive runtimes (`jupyter` / `code-server`) in local development the compute service will attempt to run the runtime on the host via `docker run` so the container's port is actually bound to `localhost` and the browser can open the link directly. This behavior is controlled with the env var `COMPUTE_FORCE_LOCAL_RUNTIME` (default: `true`).
+
+- The UI includes an "Auto-open runtime saat RUNNING" checkbox. When enabled the browser will automatically open the runtime link once (per browser session) after the instance becomes `RUNNING`. The preference is stored in `localStorage` under the key `cloudpet_auto_open` (`'1'` = enabled, `'0'` = disabled).
+
+- If you prefer to run the runtimes via `docker compose` yourself, start them with:
+
+```bash
+docker compose up -d jupyter code-server
+```
+
+Then create an instance (or use the pre-launched services) and open the shown URL in the instance card.
 
 Stripe (optional)
 
