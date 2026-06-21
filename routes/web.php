@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Cloud\ComputeController;
 
-Route::get('/', fn () => redirect()->route('login'));
+Route::get('/', fn() => redirect()->route('login'));
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', Login::class)->name('login');
@@ -68,7 +68,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/instances/{id}/stats', [ComputeController::class, 'stats'])
             ->name('cloud.api.instances.stats');
-        
+
         Route::get('/instances/{id}/log', [ComputeController::class, 'log'])
             ->name('cloud.api.instances.log');
 
@@ -77,6 +77,23 @@ Route::middleware('auth')->group(function () {
             ->middleware('role:admin')
             ->name('cloud.api.usage.export');
     });
+
+
+    // Tambahkan ke dalam Route::middleware('auth')->group() di routes/web.php
+
+    // ── Billing API ────────────────────────────────────────────────────────────────
+    Route::prefix('/cloud/api/billing')->middleware('auth')->group(function () {
+        Route::get('/summary',             [\App\Http\Controllers\Cloud\BillingController::class, 'summary'])->name('cloud.api.billing.summary');
+        Route::post('/topup',              [\App\Http\Controllers\Cloud\BillingController::class, 'topUp'])->name('cloud.api.billing.topup');
+        Route::get('/history',             [\App\Http\Controllers\Cloud\BillingController::class, 'history'])->name('cloud.api.billing.history');
+        Route::post('/storage-subscribe',  [\App\Http\Controllers\Cloud\BillingController::class, 'storageSubscribe'])->name('cloud.api.billing.storage.subscribe');
+        Route::post('/storage-sync',       [\App\Http\Controllers\Cloud\BillingController::class, 'storageSync'])->name('cloud.api.billing.storage.sync');
+    });
+
+    // ── Halaman Storage ────────────────────────────────────────────────────────────
+    Route::get('/cloud/storage', function () {
+        return view('cloud.storage');
+    })->middleware(['auth', 'role:user'])->name('cloud.storage');
 });
 
 // Public home route

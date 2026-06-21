@@ -205,6 +205,7 @@
         create: (plan, type, os) => fetch('{{ route('cloud.api.instances.store') }}', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: JSON.stringify({ plan, type, os }), credentials: 'same-origin' }).then(r => r.json()),
         action: (id, action) => fetch(`/cloud/api/instances/${id}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: JSON.stringify({ action }), credentials: 'same-origin' }).then(r => r.json()),
         log:    (id) => fetch(`/cloud/api/instances/${id}/log`, { credentials: 'same-origin' }).then(r => r.json()),
+        stats:  (id) => fetch(`/cloud/api/instances/${id}/stats`, { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null),
     };
 
     const STATUS_CHIP = {
@@ -351,11 +352,20 @@
     // ── Render instances ───────────────────────────────────────────────────
     function renderItems(items) {
         const wrap = document.getElementById('cp-instances-wrap');
-        wrap.innerHTML = '';
+
         if (!items || items.length === 0) {
             wrap.innerHTML = '<div style="grid-column:1/-1;padding:2rem;text-align:center;color:var(--cp-ink-muted);font-size:0.88rem;">Belum ada instance.</div>';
             return;
         }
+
+        // Hapus card yang sudah tidak ada di list
+        const currentIds = new Set(items.map(it => String(it.id)));
+        wrap.querySelectorAll('[data-instance-id]').forEach(el => {
+            if (!currentIds.has(el.dataset.instanceId)) el.remove();
+        });
+
+        // Hapus placeholder "belum ada" kalau ada
+        wrap.querySelectorAll('[data-placeholder]').forEach(el => el.remove());
 
         items.forEach(it => {
             const meta      = it.metadata || {};
@@ -365,8 +375,25 @@
             const type      = meta.type || 'vm';
             const tm        = TYPE_META[type] || TYPE_META.vm;
 
+            // Kalau card sudah ada dan status tidak berubah, skip rebuild
+            const existingCard = wrap.querySelector(`[data-instance-id="${it.id}"]`);
+            if (existingCard) {
+                const prevStatus = existingCard.dataset.status;
+                if (prevStatus === it.status) {
+                    // Update harga berjalan saja
+                    const priceEl = existingCard.querySelector('[data-price]');
+                    if (priceEl && it.metadata?.price_per_hour) {
+                        priceEl.innerText = 'Rp ' + parseInt(it.metadata.price_per_hour).toLocaleString('id-ID') + '/jam';
+                    }
+                    return; // skip rebuild
+                }
+                existingCard.remove(); // status berubah, rebuild
+            }
+
             const card = document.createElement('div');
             card.style.cssText = 'background:#fff;border:1px solid var(--cp-soft-border);border-radius:1rem;padding:14px;display:flex;flex-direction:column;gap:10px;';
+            card.dataset.instanceId = it.id;
+            card.dataset.status     = it.status;
 
             card.innerHTML = `
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;">
@@ -387,6 +414,25 @@
                 </div>
 
                 ${status === 'RUNNING' ? renderAccessInfo(meta, type, tm) : ''}
+
+                <!-- Stats widget (hanya RUNNING) -->
+                ${status === 'RUNNING' ? `<div id="stats-${it.id}" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                    <div style="background:var(--cp-soft);border-radius:0.6rem;padding:7px 10px;">
+                        <div style="font-size:0.62rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">CPU</div>
+                        <div style="font-size:0.88rem;font-weight:800;color:var(--cp-ink);" id="stat-cpu-${it.id}">—</div>
+                        <div style="height:4px;background:#e5e7eb;border-radius:999px;margin-top:4px;"><div id="bar-cpu-${it.id}" style="height:4px;background:linear-gradient(90deg,var(--cp-primary-start),var(--cp-primary-end));border-radius:999px;width:0%;transition:width 0.5s;"></div></div>
+                    </div>
+                    <div style="background:var(--cp-soft);border-radius:0.6rem;padding:7px 10px;">
+                        <div style="font-size:0.62rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">RAM</div>
+                        <div style="font-size:0.88rem;font-weight:800;color:var(--cp-ink);" id="stat-ram-${it.id}">—</div>
+                        <div style="height:4px;background:#e5e7eb;border-radius:999px;margin-top:4px;"><div id="bar-ram-${it.id}" style="height:4px;background:linear-gradient(90deg,var(--cp-primary-start),var(--cp-primary-end));border-radius:999px;width:0%;transition:width 0.5s;"></div></div>
+                    </div>
+                </div>
+                <div style="background:var(--cp-soft);border-radius:0.6rem;padding:7px 10px;">
+                    <div style="font-size:0.62rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">DISK (/data)</div>
+                    <div style="font-size:0.88rem;font-weight:800;color:var(--cp-ink);" id="stat-disk-${it.id}">—</div>
+                    <div style="height:4px;background:#e5e7eb;border-radius:999px;margin-top:4px;"><div id="bar-disk-${it.id}" style="height:4px;background:linear-gradient(90deg,var(--cp-primary-start),var(--cp-primary-end));border-radius:999px;width:0%;transition:width 0.5s;"></div></div>
+                </div>` : ''}
 
                 <div style="display:flex;gap:6px;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--cp-soft-border);" id="actions-${it.id}"></div>
             `;
@@ -454,7 +500,15 @@
                 card.appendChild(priceEl);
             }
 
-            wrap.appendChild(card);
+            // Insert di posisi yang benar sesuai urutan list
+            const allCards = wrap.querySelectorAll('[data-instance-id]');
+            const insertBefore = Array.from(allCards).find(c => {
+                const idx = items.findIndex(i => String(i.id) === c.dataset.instanceId);
+                const myIdx = items.findIndex(i => String(i.id) === String(it.id));
+                return idx > myIdx;
+            });
+            if (insertBefore) wrap.insertBefore(card, insertBefore);
+            else wrap.appendChild(card);
         });
     }
 
@@ -480,7 +534,60 @@
         return '';
     }
 
-    async function refresh() { renderItems(await API.list(currentTab === 'archived')); }
+    async function refresh() {
+        const items = await API.list(currentTab === 'archived');
+        renderItems(items);
+        // Poll stats untuk semua instance RUNNING
+        if (currentTab === 'active') {
+            items.filter(it => (it.status || '').toUpperCase() === 'RUNNING').forEach(it => {
+                pollStats(it.id);
+            });
+        }
+    }
+
+    // Track active stat polls supaya tidak double-poll
+    const _statPolls = new Set();
+
+    function pollStats(instanceId) {
+        if (_statPolls.has(instanceId)) return;
+        _statPolls.add(instanceId);
+
+        async function fetchAndUpdate() {
+            // Cek apakah card masih ada di DOM
+            const cpuEl = document.getElementById('stat-cpu-' + instanceId);
+            const ramEl = document.getElementById('stat-ram-' + instanceId);
+            if (!cpuEl || !ramEl) { _statPolls.delete(instanceId); return; }
+
+            const data = await API.stats(instanceId);
+            if (!data || data.error) { setTimeout(fetchAndUpdate, 6000); return; }
+
+            // CPU
+            const cpuPct = parseFloat(data.cpu_perc) || 0;
+            cpuEl.innerText = data.cpu_perc || '0%';
+            const barCpu = document.getElementById('bar-cpu-' + instanceId);
+            if (barCpu) barCpu.style.width = Math.min(cpuPct, 100) + '%';
+
+            // RAM
+            const ramPct = parseFloat(data.mem_perc) || 0;
+            ramEl.innerText = data.mem_usage || '—';
+            const barRam = document.getElementById('bar-ram-' + instanceId);
+            if (barRam) barRam.style.width = Math.min(ramPct, 100) + '%';
+
+            // Disk
+            if (data.disk_used !== undefined) {
+                const diskEl  = document.getElementById('stat-disk-' + instanceId);
+                const barDisk = document.getElementById('bar-disk-' + instanceId);
+                if (diskEl)  diskEl.innerText = data.disk_used || '—';
+                if (barDisk) barDisk.style.width = Math.min(parseFloat(data.disk_pct) || 0, 100) + '%';
+                // Warna merah kalau disk > 90%
+                if (barDisk && parseFloat(data.disk_pct) > 90) barDisk.style.background = '#dc2626';
+            }
+
+            setTimeout(fetchAndUpdate, 5000);
+        }
+
+        fetchAndUpdate();
+    }
 
     // ── Modal Akses ────────────────────────────────────────────────────────
     function showAccessModal(instance) {

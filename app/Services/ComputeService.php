@@ -426,13 +426,31 @@ class ComputeService
         if ($rc !== 0 || empty($out)) return ['error' => 'stats unavailable'];
 
         $parts = explode(',', $out[0]);
-        return [
+
+        $stats = [
             'cpu_perc'  => trim($parts[0] ?? '0%'),
             'mem_usage' => trim($parts[1] ?? '0B / 0B'),
             'mem_perc'  => trim($parts[2] ?? '0%'),
             'net_io'    => trim($parts[3] ?? '0B / 0B'),
             'block_io'  => trim($parts[4] ?? '0B / 0B'),
         ];
+
+        // Disk usage dari volume /data (atau mount point sesuai tipe)
+        $mountPoint = match($meta['type'] ?? 'vm') {
+            'ide'      => '/home/coder/project',
+            'notebook' => '/home/jovyan/work',
+            default    => '/data',
+        };
+
+        exec('docker exec ' . escapeshellarg($target) . ' df -h ' . escapeshellarg($mountPoint) . ' 2>&1', $dfOut, $dfRc);
+        if ($dfRc === 0 && isset($dfOut[1])) {
+            // Format: Filesystem Size Used Avail Use% Mounted
+            $cols = preg_split('/\s+/', trim($dfOut[1]));
+            $stats['disk_used'] = ($cols[2] ?? '—') . ' / ' . ($cols[1] ?? '—');
+            $stats['disk_pct']  = rtrim($cols[4] ?? '0', '%');
+        }
+
+        return $stats;
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
