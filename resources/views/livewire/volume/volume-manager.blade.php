@@ -64,7 +64,6 @@
                                     <div style="font-size: 0.75rem; color: var(--cp-ink-muted); font-weight: 600; margin-top: 2px;">💾 {{ $volume->size_gb }} GB</div>
                                 </td>
                                 <td>
-                                    {{-- Desain Chip Status Identik dengan Computing --}}
                                     @if($volume->status === 'PROVISIONING')
                                         <span style="background:#fef3c7;color:#92400e;font-size:0.68rem;font-weight:700;padding:3px 9px;border-radius:999px;">PROVISIONING</span>
                                     @elseif($volume->status === 'AVAILABLE')
@@ -86,23 +85,33 @@
                                 </td>
                                 <td style="text-align: right;">
                                     <div style="display: flex; justify-content: flex-end; gap: 6px;">
-                                        @if($volume->status === 'AVAILABLE')
-                                            <button wire:click="openAttachModal({{ $volume->id }})"
-                                                    style="padding:6px 12px;border-radius:0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid #b8d4f0;background:#e8f2fb;color:#2b5fa0;">
-                                                🔗 Attach
-                                            </button>
+                                        
+                                        {{-- Tombol Delete (Muncul untuk status yang tidak terpasang/stuck) --}}
+                                        @if(in_array($volume->status, ['AVAILABLE', 'PROVISIONING', 'ERROR']))
                                             <button wire:click="deleteVolume({{ $volume->id }})"
                                                     wire:confirm="Yakin ingin menghapus volume {{ $volume->volume_name }}? Tindakan ini permanen."
                                                     style="padding:6px 12px;border-radius:0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid #f5c6c6;background:#fde8e8;color:#9b2c2c;">
                                                 🗑️ Delete
                                             </button>
-                                        @elseif($volume->status === 'ATTACHED')
+                                        @endif
+
+                                        {{-- Tombol Attach (Hanya saat Available) --}}
+                                        @if($volume->status === 'AVAILABLE')
+                                            <button wire:click="openAttachModal({{ $volume->id }})"
+                                                    style="padding:6px 12px;border-radius:0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid #b8d4f0;background:#e8f2fb;color:#2b5fa0;">
+                                                🔗 Attach
+                                            </button>
+                                        @endif
+
+                                        {{-- Tombol Detach (Hanya saat Attached) --}}
+                                        @if($volume->status === 'ATTACHED')
                                             <button wire:click="detachVolume({{ $volume->id }})"
                                                     wire:confirm="Lepas volume {{ $volume->volume_name }} dari {{ $volume->computeInstance->name ?? 'instance' }}?"
                                                     style="padding:6px 12px;border-radius:0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid #fde68a;background:#fef3c7;color:#92400e;">
                                                 🔌 Detach
                                             </button>
                                         @endif
+
                                     </div>
                                 </td>
                             </tr>

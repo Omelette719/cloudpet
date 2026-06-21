@@ -46,17 +46,18 @@ class MiniStackService
      */
     public function createVolume(string $name, int $sizeGb): string
     {
+        // Coba ganti ->post menjadi ->put
         $response = Http::withToken($this->apiKey)
-            ->post("{$this->baseUrl}/volumes/provision", [
+            ->put("{$this->baseUrl}/volumes", [ // Seringkali create = PUT
                 'name' => $name,
                 'size_gb' => $sizeGb
             ]);
 
         if (!$response->successful()) {
-            throw new Exception("MiniStack API Error (Create Volume): " . $response->body());
+            throw new Exception("MiniStack API Error (PUT Create): " . $response->body());
         }
 
-        return $response->json('data.volume_id'); // Return ID dari simulator
+        return $response->json('data.volume_id');
     }
 
     public function deleteVolume(string $providerId): bool

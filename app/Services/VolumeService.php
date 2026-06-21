@@ -9,6 +9,7 @@ use App\Models\ResourceStateLog;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 use Exception;
 
 class VolumeService
@@ -103,23 +104,36 @@ class VolumeService
     /** Hapus volume permanen. */
     public function deleteVolume(BlockVolume $volume): void
     {
+        // 1. Validasi Keamanan
         if ($volume->status === 'ATTACHED') {
-            throw new Exception('Lepas (detach) volume terlebih dahulu sebelum menghapus.');
+            throw new Exception('Volume sedang terpasang (ATTACHED). Lepas (detach) volume terlebih dahulu.');
         }
 
-        if ($volume->provider_volume_id && !$this->miniStack->deleteVolume($volume->provider_volume_id)) {
-            throw new Exception('Gagal menghapus volume pada provider.');
-        }
+        // 2. Jalankan dalam Transaksi Database
+        DB::transaction(function () use ($volume) {
+            
+            // 3. Coba hapus di Provider (MiniStack)
+            if ($volume->provider_volume_id) {
+                try {
+                    $this->miniStack->deleteVolume($volume->provider_volume_id);
+                } catch (Exception $e) {
+                    // Log error tapi JANGAN throw exception agar user tetap bisa hapus record database yang error/stuck
+                    Log::error("Gagal menghapus volume di MiniStack: " . $e->getMessage());
+                }
+            }
 
-        ResourceStateLog::create([
-            'id'            => (string) Str::uuid(),
-            'resource_type' => 'block_volume',
-            'resource_id'   => $volume->id,
-            'old_state'     => $volume->status,
-            'new_state'     => 'DELETED',
-            'message'       => "Volume {$volume->volume_name} dihapus oleh user.",
-        ]);
+            // 4. Log state deletion
+            ResourceStateLog::create([
+                'id'            => (string) Str::uuid(),
+                'resource_type' => 'block_volume',
+                'resource_id'   => $volume->id,
+                'old_state'     => $volume->status,
+                'new_state'     => 'DELETED',
+                'message'       => "Volume {$volume->volume_name} dihapus oleh user.",
+            ]);
 
-        $volume->delete();
+            // 5. Hapus record dari database
+            $volume->delete();
+        });
     }
 }
