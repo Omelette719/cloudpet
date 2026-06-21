@@ -30,7 +30,7 @@
         <a href="{{ route('cloud.storage') }}" wire:navigate
             class="cp-side-link {{ request()->routeIs('cloud.storage') ? 'active' : '' }}">
             <span>💾</span>
-            <span>Storage</span>
+            <span>Membership</span>
             <span class="cp-chip">Beta</span>
         </a>
         <a class="cp-side-link soon">
