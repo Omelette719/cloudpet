@@ -31,7 +31,7 @@
             </a>
 
             {{-- Storage / Bucket (Aktif) --}}
-            <a href="{{ route('cloud.buckets') }}"
+            <a href="{{ route('cloud.bucket') }}"
                style="display:flex; flex-direction:column; gap:0.75rem; padding:1.25rem; border-radius:1rem; background:#fff; border:1px solid var(--cp-soft-border); text-decoration:none; transition:box-shadow 0.18s, transform 0.18s; box-shadow:var(--cp-shadow);"
                onmouseenter="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 20px 48px rgba(34,48,31,0.18)'"
                onmouseleave="this.style.transform='translateY(0)'; this.style.boxShadow='var(--cp-shadow)'">

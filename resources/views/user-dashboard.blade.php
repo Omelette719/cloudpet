@@ -1,13 +1,11 @@
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/bucket
 <div>
     {{-- Welcome banner --}}
     <div class="cp-banner">
-        <div style="position:absolute;right:1rem;top:-0.8rem;font-size:4.8rem;opacity:0.22;">{{ $user->animal_avatar }}</div>
+        <div style="position:absolute;right:1rem;top:-0.8rem;font-size:4.8rem;opacity:0.22;">{{ $user->animal_avatar }}
+        </div>
         <div style="position:absolute;right:6rem;bottom:0.1rem;font-size:2.5rem;opacity:0.15;">☁️</div>
-        <div style="position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;">
+        <div
+            style="position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;">
             <div>
                 <p>Selamat datang kembali!</p>
                 <h2>{{ $user->name }} {{ $user->animal_avatar }}</h2>
@@ -17,10 +15,12 @@
         </div>
     </div>
 
-    {{-- Stats --}}
     <div style="margin-top:1rem;">
         <h3 class="cp-section-title">📊 Ringkasan Akun</h3>
+
         <div class="cp-grid-4">
+
+            {{-- Compute --}}
             <div class="cp-stat">
                 <span style="font-size:1.8rem;">☁️</span>
                 <div>
@@ -28,28 +28,46 @@
                     <p class="cp-stat-value" id="stat-instances">—</p>
                 </div>
             </div>
-            <div class="cp-stat" style="cursor:pointer;" onclick="document.getElementById('storage-section').scrollIntoView({behavior:'smooth'})">
+
+            {{-- Storage --}}
+            <div class="cp-stat" style="cursor:pointer;"
+                onclick="document.getElementById('storage-section').scrollIntoView({behavior:'smooth'})">
+
                 <span style="font-size:1.8rem;">💾</span>
+
                 <div style="width:100%;">
                     <p class="cp-stat-label">Storage Terpakai</p>
                     <p class="cp-stat-value" id="stat-storage">— GB</p>
+
                     <div style="height:4px;background:#e5e7eb;border-radius:999px;margin-top:6px;">
-                        <div id="stat-storage-bar" style="height:4px;background:linear-gradient(90deg,var(--cp-primary-start),var(--cp-primary-end));border-radius:999px;width:0%;transition:width 0.5s;"></div>
+                        <div id="stat-storage-bar"
+                            style="height:4px;background:linear-gradient(90deg,var(--cp-primary-start),var(--cp-primary-end));border-radius:999px;width:0%;transition:width .5s;">
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="cp-stat" id="balance-stat" style="cursor:pointer;" onclick="document.getElementById('billing-section').scrollIntoView({behavior:'smooth'})">
+
+            {{-- Saldo --}}
+            <div class="cp-stat" style="cursor:pointer;"
+                onclick="document.getElementById('billing-section').scrollIntoView({behavior:'smooth'})">
+
                 <span style="font-size:1.8rem;">💰</span>
+
                 <div>
                     <p class="cp-stat-label">Saldo</p>
                     <p class="cp-stat-value" id="stat-balance">—</p>
                 </div>
             </div>
+
+            {{-- Bucket --}}
             <div class="cp-stat">
                 <span style="font-size:1.8rem;">📦</span>
+
                 <div>
                     <p class="cp-stat-label">Bucket Aktif</p>
-                    <p class="cp-stat-value" id="stat-buckets">—</p>
+                    <p class="cp-stat-value" id="stat-buckets">
+                        {{ $bucketCount ?? 0 }}
+                    </p>
                 </div>
             </div>
         </div>
@@ -64,21 +82,25 @@
             <div class="cp-card">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
                     <div>
-                        <div style="font-size:0.72rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.05em;">Saldo Tersedia</div>
-                        <div style="font-size:1.8rem;font-weight:800;color:var(--cp-ink);" id="balance-display">Rp —</div>
+                        <div
+                            style="font-size:0.72rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.05em;">
+                            Saldo Tersedia</div>
+                        <div style="font-size:1.8rem;font-weight:800;color:var(--cp-ink);" id="balance-display">Rp —
+                        </div>
                         <div id="account-status-badge" style="margin-top:4px;"></div>
                     </div>
                     <div style="font-size:2.5rem;">💰</div>
                 </div>
 
                 <div style="border-top:1px solid var(--cp-soft-border);padding-top:14px;">
-                    <div style="font-size:0.78rem;font-weight:700;color:var(--cp-ink);margin-bottom:8px;">Top-up Saldo</div>
+                    <div style="font-size:0.78rem;font-weight:700;color:var(--cp-ink);margin-bottom:8px;">Top-up Saldo
+                    </div>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;" id="topup-presets">
-                        @foreach([10000,25000,50000,100000,250000,500000] as $amt)
-                        <button onclick="setTopupAmount({{ $amt }})"
-                            style="padding:6px 12px;border-radius:0.65rem;border:1px solid var(--cp-soft-border);background:var(--cp-soft);font-size:0.78rem;font-weight:700;color:var(--cp-ink);cursor:pointer;">
-                            Rp {{ number_format($amt, 0, ',', '.') }}
-                        </button>
+                        @foreach ([10000, 25000, 50000, 100000, 250000, 500000] as $amt)
+                            <button onclick="setTopupAmount({{ $amt }})"
+                                style="padding:6px 12px;border-radius:0.65rem;border:1px solid var(--cp-soft-border);background:var(--cp-soft);font-size:0.78rem;font-weight:700;color:var(--cp-ink);cursor:pointer;">
+                                Rp {{ number_format($amt, 0, ',', '.') }}
+                            </button>
                         @endforeach
                     </div>
                     <div style="display:flex;gap:8px;">
@@ -93,16 +115,19 @@
                 </div>
 
                 <div style="margin-top:14px;padding:10px;background:var(--cp-soft);border-radius:0.75rem;">
-                    <div style="font-size:0.72rem;font-weight:700;color:var(--cp-ink-muted);margin-bottom:4px;">⚡ Estimasi biaya aktif</div>
+                    <div style="font-size:0.72rem;font-weight:700;color:var(--cp-ink-muted);margin-bottom:4px;">⚡
+                        Estimasi biaya aktif</div>
                     <div style="font-size:0.85rem;font-weight:700;color:var(--cp-ink);" id="cost-estimate">—</div>
                 </div>
             </div>
 
             {{-- Riwayat transaksi --}}
             <div class="cp-card">
-                <div style="font-size:0.78rem;font-weight:700;color:var(--cp-ink);margin-bottom:12px;">Riwayat Transaksi</div>
+                <div style="font-size:0.78rem;font-weight:700;color:var(--cp-ink);margin-bottom:12px;">Riwayat Transaksi
+                </div>
                 <div id="tx-history" style="display:grid;gap:6px;max-height:260px;overflow-y:auto;">
-                    <div style="text-align:center;color:var(--cp-ink-muted);font-size:0.82rem;padding:1rem;">Memuat...</div>
+                    <div style="text-align:center;color:var(--cp-ink-muted);font-size:0.82rem;padding:1rem;">Memuat...
+                    </div>
                 </div>
             </div>
         </div>
@@ -115,11 +140,15 @@
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
                 <div style="flex:1;min-width:200px;">
                     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
-                        <div style="font-size:0.78rem;font-weight:700;color:var(--cp-ink-muted);">Penggunaan Storage</div>
-                        <div style="font-size:0.78rem;font-weight:700;color:var(--cp-ink);" id="storage-label">— / — GB</div>
+                        <div style="font-size:0.78rem;font-weight:700;color:var(--cp-ink-muted);">Penggunaan Storage
+                        </div>
+                        <div style="font-size:0.78rem;font-weight:700;color:var(--cp-ink);" id="storage-label">— / — GB
+                        </div>
                     </div>
                     <div style="height:8px;background:#e5e7eb;border-radius:999px;">
-                        <div id="storage-bar-main" style="height:8px;background:linear-gradient(90deg,var(--cp-primary-start),var(--cp-primary-end));border-radius:999px;width:0%;transition:width 0.5s;"></div>
+                        <div id="storage-bar-main"
+                            style="height:8px;background:linear-gradient(90deg,var(--cp-primary-start),var(--cp-primary-end));border-radius:999px;width:0%;transition:width 0.5s;">
+                        </div>
                     </div>
                     <div style="display:flex;justify-content:space-between;margin-top:4px;">
                         <div style="font-size:0.68rem;color:var(--cp-ink-muted);" id="storage-plan-badge">Paket: —</div>
@@ -127,14 +156,17 @@
                     </div>
                 </div>
                 <a href="{{ route('cloud.storage') }}" class="cp-btn"
-                   style="width:auto;padding:9px 18px;font-size:0.88rem;border-radius:0.75rem;text-decoration:none;text-align:center;">
+                    style="width:auto;padding:9px 18px;font-size:0.88rem;border-radius:0.75rem;text-decoration:none;text-align:center;">
                     Kelola Storage →
                 </a>
             </div>
 
-            <div id="storage-full-warning" style="display:none;margin-top:12px;padding:10px 14px;background:#fde8e8;border:1px solid #f5c6c6;border-radius:0.75rem;">
-                <div style="font-size:0.85rem;font-weight:700;color:#9b2c2c;">⚠️ Storage penuh — semua instance dihentikan otomatis.</div>
-                <div style="font-size:0.78rem;color:#c53030;margin-top:2px;">Langganan paket storage lebih besar atau hapus instance untuk membebaskan ruang.</div>
+            <div id="storage-full-warning"
+                style="display:none;margin-top:12px;padding:10px 14px;background:#fde8e8;border:1px solid #f5c6c6;border-radius:0.75rem;">
+                <div style="font-size:0.85rem;font-weight:700;color:#9b2c2c;">⚠️ Storage penuh — semua instance
+                    dihentikan otomatis.</div>
+                <div style="font-size:0.78rem;color:#c53030;margin-top:2px;">Langganan paket storage lebih besar atau
+                    hapus instance untuk membebaskan ruang.</div>
             </div>
         </div>
     </div>
@@ -144,33 +176,28 @@
         <div>
             <h3 class="cp-section-title">👤 Info Akun</h3>
             <div class="cp-card" style="padding:0;overflow:hidden;">
-                @foreach([
-                    ['label'=>'Avatar',    'value'=> $user->animal_avatar . ' ' . $user->name],
-                    ['label'=>'Email',     'value'=> $user->email],
-                    ['label'=>'Bergabung', 'value'=> $user->created_at->translatedFormat('d F Y')],
-                ] as $row)
-                <div style="display:flex;align-items:center;gap:0.6rem;padding:0.85rem 1rem;border-bottom:1px solid #eef5e7;">
-                    <span style="width:6rem;flex-shrink:0;font-size:0.68rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#89a081;">{{ $row['label'] }}</span>
-                    <span style="font-size:0.84rem;font-weight:700;color:#455b41;">{{ $row['value'] }}</span>
-                </div>
+                @foreach ([['label' => 'Avatar', 'value' => $user->animal_avatar . ' ' . $user->name], ['label' => 'Email', 'value' => $user->email], ['label' => 'Bergabung', 'value' => $user->created_at->translatedFormat('d F Y')]] as $row)
+                    <div
+                        style="display:flex;align-items:center;gap:0.6rem;padding:0.85rem 1rem;border-bottom:1px solid #eef5e7;">
+                        <span
+                            style="width:6rem;flex-shrink:0;font-size:0.68rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#89a081;">{{ $row['label'] }}</span>
+                        <span style="font-size:0.84rem;font-weight:700;color:#455b41;">{{ $row['value'] }}</span>
+                    </div>
                 @endforeach
             </div>
         </div>
         <div>
             <h3 class="cp-section-title">💡 Info & Tips</h3>
             <div class="cp-card" style="display:grid;gap:0.65rem;">
-                @foreach([
-                    ['emoji'=>'💰','title'=>'Pay as you go','desc'=>'Saldo dipotong per jam sesuai instance yang berjalan. Stop instance untuk berhenti ditagih.'],
-                    ['emoji'=>'💾','title'=>'Storage gratis 30 GB','desc'=>'Termasuk semua tipe instance. Upgrade paket untuk kapasitas lebih besar.'],
-                    ['emoji'=>'⚡','title'=>'Auto-stop saat saldo habis','desc'=>'Instance dihentikan otomatis kalau saldo tidak cukup. Top-up untuk menghidupkan kembali.'],
-                ] as $tip)
-                <div class="cp-tip">
-                    <span style="font-size:1.4rem;">{{ $tip['emoji'] }}</span>
-                    <div>
-                        <p style="font-size:0.84rem;font-weight:800;color:#496443;">{{ $tip['title'] }}</p>
-                        <p style="font-size:0.74rem;color:#768971;font-weight:600;margin-top:0.2rem;">{{ $tip['desc'] }}</p>
+                @foreach ([['emoji' => '💰', 'title' => 'Pay as you go', 'desc' => 'Saldo dipotong per jam sesuai instance yang berjalan. Stop instance untuk berhenti ditagih.'], ['emoji' => '💾', 'title' => 'Storage gratis 30 GB', 'desc' => 'Termasuk semua tipe instance. Upgrade paket untuk kapasitas lebih besar.'], ['emoji' => '⚡', 'title' => 'Auto-stop saat saldo habis', 'desc' => 'Instance dihentikan otomatis kalau saldo tidak cukup. Top-up untuk menghidupkan kembali.']] as $tip)
+                    <div class="cp-tip">
+                        <span style="font-size:1.4rem;">{{ $tip['emoji'] }}</span>
+                        <div>
+                            <p style="font-size:0.84rem;font-weight:800;color:#496443;">{{ $tip['title'] }}</p>
+                            <p style="font-size:0.74rem;color:#768971;font-weight:600;margin-top:0.2rem;">
+                                {{ $tip['desc'] }}</p>
+                        </div>
                     </div>
-                </div>
                 @endforeach
             </div>
         </div>
@@ -178,67 +205,88 @@
 </div>
 
 <script>
-const CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-async function loadSummary() {
-    const res = await fetch('/cloud/api/billing/summary', { credentials: 'same-origin' });
-    if (!res.ok) return;
-    const d = await res.json();
+    async function loadSummary() {
+        const res = await fetch('/cloud/api/billing/summary', {
+            credentials: 'same-origin'
+        });
+        if (!res.ok) return;
+        const d = await res.json();
 
-    // Saldo
-    document.getElementById('balance-display').innerText = 'Rp ' + parseFloat(d.balance).toLocaleString('id-ID');
-    document.getElementById('stat-balance').innerText    = 'Rp ' + parseFloat(d.balance).toLocaleString('id-ID');
+        // Saldo
+        document.getElementById('balance-display').innerText = 'Rp ' + parseFloat(d.balance).toLocaleString(
+        'id-ID');
+        document.getElementById('stat-balance').innerText = 'Rp ' + parseFloat(d.balance).toLocaleString('id-ID');
 
-    // Account status badge
-    const statusBadge = document.getElementById('account-status-badge');
-    if (d.account_status === 'SUSPENDED') {
-        statusBadge.innerHTML = '<span style="font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:#fde8e8;color:#9b2c2c;">⚠️ Akun Suspended — Top-up saldo untuk mengaktifkan kembali</span>';
-    } else {
-        statusBadge.innerHTML = '<span style="font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:#eaf4dd;color:#3b5136;">✓ Aktif</span>';
+        // Account status badge
+        const statusBadge = document.getElementById('account-status-badge');
+        if (d.account_status === 'SUSPENDED') {
+            statusBadge.innerHTML =
+                '<span style="font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:#fde8e8;color:#9b2c2c;">⚠️ Akun Suspended — Top-up saldo untuk mengaktifkan kembali</span>';
+        } else {
+            statusBadge.innerHTML =
+                '<span style="font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:#eaf4dd;color:#3b5136;">✓ Aktif</span>';
+        }
+
+        // Storage
+        const usedGb = parseFloat(d.storage_used_gb);
+        const quotaGb = parseInt(d.storage_quota_gb);
+        const pct = Math.min(d.storage_used_pct, 100);
+        const barColor = pct > 90 ? '#dc2626' : pct > 70 ? '#d97706' :
+            'linear-gradient(90deg,var(--cp-primary-start),var(--cp-primary-end))';
+
+        document.getElementById('stat-storage').innerText = usedGb.toFixed(2) + ' / ' + quotaGb + ' GB';
+        document.getElementById('storage-label').innerText = usedGb.toFixed(2) + ' / ' + quotaGb + ' GB';
+        document.getElementById('stat-storage-bar').style.width = pct + '%';
+        document.getElementById('stat-storage-bar').style.background = barColor;
+        document.getElementById('storage-bar-main').style.width = pct + '%';
+        document.getElementById('storage-bar-main').style.background = typeof barColor === 'string' && barColor
+            .startsWith('#') ? barColor : '';
+        document.getElementById('storage-plan-badge').innerText = 'Paket: ' + d.storage_plan_label;
+        document.getElementById('storage-expires').innerText = d.storage_plan_expires_at ? 'Berlaku hingga ' + d
+            .storage_plan_expires_at : '';
+        document.getElementById('storage-full-warning').style.display = pct >= 100 ? 'block' : 'none';
     }
 
-    // Storage
-    const usedGb  = parseFloat(d.storage_used_gb);
-    const quotaGb = parseInt(d.storage_quota_gb);
-    const pct     = Math.min(d.storage_used_pct, 100);
-    const barColor = pct > 90 ? '#dc2626' : pct > 70 ? '#d97706' : 'linear-gradient(90deg,var(--cp-primary-start),var(--cp-primary-end))';
+    async function loadInstances() {
+        const res = await fetch('/cloud/api/instances', {
+            credentials: 'same-origin'
+        });
+        if (!res.ok) return;
+        const items = await res.json();
+        const running = items.filter(i => i.status === 'RUNNING');
+        document.getElementById('stat-instances').innerText = running.length + ' instance';
+        const totalCost = running.reduce((s, i) => s + parseFloat(i.metadata?.price_per_hour || 0), 0);
+        document.getElementById('cost-estimate').innerText = totalCost > 0 ?
+            'Rp ' + totalCost.toLocaleString('id-ID') + '/jam (' + running.length + ' instance running)' :
+            'Tidak ada instance yang berjalan';
+    }
 
-    document.getElementById('stat-storage').innerText       = usedGb.toFixed(2) + ' / ' + quotaGb + ' GB';
-    document.getElementById('storage-label').innerText      = usedGb.toFixed(2) + ' / ' + quotaGb + ' GB';
-    document.getElementById('stat-storage-bar').style.width = pct + '%';
-    document.getElementById('stat-storage-bar').style.background = barColor;
-    document.getElementById('storage-bar-main').style.width = pct + '%';
-    document.getElementById('storage-bar-main').style.background = typeof barColor === 'string' && barColor.startsWith('#') ? barColor : '';
-    document.getElementById('storage-plan-badge').innerText = 'Paket: ' + d.storage_plan_label;
-    document.getElementById('storage-expires').innerText    = d.storage_plan_expires_at ? 'Berlaku hingga ' + d.storage_plan_expires_at : '';
-    document.getElementById('storage-full-warning').style.display = pct >= 100 ? 'block' : 'none';
-}
-
-async function loadInstances() {
-    const res = await fetch('/cloud/api/instances', { credentials: 'same-origin' });
-    if (!res.ok) return;
-    const items = await res.json();
-    const running = items.filter(i => i.status === 'RUNNING');
-    document.getElementById('stat-instances').innerText = running.length + ' instance';
-    const totalCost = running.reduce((s, i) => s + parseFloat(i.metadata?.price_per_hour || 0), 0);
-    document.getElementById('cost-estimate').innerText = totalCost > 0
-        ? 'Rp ' + totalCost.toLocaleString('id-ID') + '/jam (' + running.length + ' instance running)'
-        : 'Tidak ada instance yang berjalan';
-}
-
-async function loadHistory() {
-    const res = await fetch('/cloud/api/billing/history', { credentials: 'same-origin' });
-    if (!res.ok) return;
-    const txs = await res.json();
-    const wrap = document.getElementById('tx-history');
-    if (!txs.length) { wrap.innerHTML = '<div style="text-align:center;color:var(--cp-ink-muted);font-size:0.82rem;padding:1rem;">Belum ada transaksi.</div>'; return; }
-    wrap.innerHTML = txs.map(tx => {
-        const isDebit  = parseFloat(tx.amount) < 0;
-        const color    = isDebit ? '#9b2c2c' : '#3b5136';
-        const bg       = isDebit ? '#fde8e8' : '#eaf4dd';
-        const sign     = isDebit ? '−' : '+';
-        const date     = new Date(tx.created_at).toLocaleString('id-ID', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--cp-soft);border-radius:0.65rem;gap:8px;">
+    async function loadHistory() {
+        const res = await fetch('/cloud/api/billing/history', {
+            credentials: 'same-origin'
+        });
+        if (!res.ok) return;
+        const txs = await res.json();
+        const wrap = document.getElementById('tx-history');
+        if (!txs.length) {
+            wrap.innerHTML =
+                '<div style="text-align:center;color:var(--cp-ink-muted);font-size:0.82rem;padding:1rem;">Belum ada transaksi.</div>';
+            return;
+        }
+        wrap.innerHTML = txs.map(tx => {
+            const isDebit = parseFloat(tx.amount) < 0;
+            const color = isDebit ? '#9b2c2c' : '#3b5136';
+            const bg = isDebit ? '#fde8e8' : '#eaf4dd';
+            const sign = isDebit ? '−' : '+';
+            const date = new Date(tx.created_at).toLocaleString('id-ID', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--cp-soft);border-radius:0.65rem;gap:8px;">
             <div>
                 <div style="font-size:0.78rem;font-weight:700;color:var(--cp-ink);">${tx.description || tx.transaction_type}</div>
                 <div style="font-size:0.68rem;color:var(--cp-ink-muted);">${date}</div>
@@ -247,38 +295,61 @@ async function loadHistory() {
                 ${sign} Rp ${Math.abs(parseFloat(tx.amount)).toLocaleString('id-ID')}
             </span>
         </div>`;
-    }).join('');
-}
+        }).join('');
+    }
 
-function setTopupAmount(amt) {
-    document.getElementById('topup-amount').value = amt;
-}
+    function setTopupAmount(amt) {
+        document.getElementById('topup-amount').value = amt;
+    }
 
-async function doTopUp() {
-    const amount = parseFloat(document.getElementById('topup-amount').value);
-    const msg    = document.getElementById('topup-msg');
-    const btn    = document.getElementById('topup-btn');
-    if (!amount || amount < 1000) { msg.style.display = 'block'; msg.style.color = '#9b2c2c'; msg.innerText = 'Minimal top-up Rp 1.000'; return; }
-    btn.disabled = true; btn.innerText = 'Memproses...';
-    try {
-        const res  = await fetch('/cloud/api/billing/topup', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: JSON.stringify({ amount }), credentials: 'same-origin' });
-        const data = await res.json();
-        if (data.success) {
-            msg.style.color = '#3b5136'; msg.innerText = '✓ Top-up berhasil! Saldo: Rp ' + parseFloat(data.balance).toLocaleString('id-ID');
-            document.getElementById('topup-amount').value = '';
-            loadSummary(); loadHistory();
-        } else {
-            msg.style.color = '#9b2c2c'; msg.innerText = '✗ ' + (data.error || 'Gagal');
+    async function doTopUp() {
+        const amount = parseFloat(document.getElementById('topup-amount').value);
+        const msg = document.getElementById('topup-msg');
+        const btn = document.getElementById('topup-btn');
+        if (!amount || amount < 1000) {
+            msg.style.display = 'block';
+            msg.style.color = '#9b2c2c';
+            msg.innerText = 'Minimal top-up Rp 1.000';
+            return;
         }
-    } catch(e) { msg.style.color = '#9b2c2c'; msg.innerText = '✗ Terjadi kesalahan.'; }
-    msg.style.display = 'block';
-    btn.disabled = false; btn.innerText = 'Top-up';
-}
+        btn.disabled = true;
+        btn.innerText = 'Memproses...';
+        try {
+            const res = await fetch('/cloud/api/billing/topup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF
+                },
+                body: JSON.stringify({
+                    amount
+                }),
+                credentials: 'same-origin'
+            });
+            const data = await res.json();
+            if (data.success) {
+                msg.style.color = '#3b5136';
+                msg.innerText = '✓ Top-up berhasil! Saldo: Rp ' + parseFloat(data.balance).toLocaleString('id-ID');
+                document.getElementById('topup-amount').value = '';
+                loadSummary();
+                loadHistory();
+            } else {
+                msg.style.color = '#9b2c2c';
+                msg.innerText = '✗ ' + (data.error || 'Gagal');
+            }
+        } catch (e) {
+            msg.style.color = '#9b2c2c';
+            msg.innerText = '✗ Terjadi kesalahan.';
+        }
+        msg.style.display = 'block';
+        btn.disabled = false;
+        btn.innerText = 'Top-up';
+    }
 
-// Init
-loadSummary();
-loadInstances();
-loadHistory();
-setInterval(loadSummary, 30000);
-setInterval(loadInstances, 10000);
+    // Init
+    loadSummary();
+    loadInstances();
+    loadHistory();
+    setInterval(loadSummary, 30000);
+    setInterval(loadInstances, 10000);
 </script>

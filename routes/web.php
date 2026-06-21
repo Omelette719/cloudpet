@@ -96,15 +96,15 @@ Route::middleware('auth')->group(function () {
         return view('cloud.storage');
     })->middleware(['auth', 'role:user'])->name('cloud.storage');
 
-    Route::get('/cloud/buckets', function () {
+    Route::get('/cloud/bucket', function () {
         $buckets = \App\Models\StorageBucket::where(
             'user_id',
             Auth::id()
         )->latest()->get();
 
-        return view('cloud.buckets', compact('buckets'));
+        return view('cloud.bucket', compact('buckets'));
     })->middleware('role:user')
-        ->name('cloud.buckets');
+        ->name('cloud.bucket');
 
     Route::get('/bucket/{id}', BucketManager::class)
         ->middleware('role:user')
