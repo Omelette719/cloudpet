@@ -21,16 +21,9 @@ class ComputeController extends Controller
     {
         $user = $request->user();
 
-        if ($request->query('archived') == '1') {
-            $items = ComputeInstance::onlyTrashed()
-                ->where('user_id', $user->id)
-                ->orderByDesc('created_at')
-                ->get();
-        } else {
-            $items = ComputeInstance::where('user_id', $user->id)
-                ->orderByDesc('created_at')
-                ->get();
-        }
+        $items = $request->query('archived') == '1'
+            ? ComputeInstance::onlyTrashed()->where('user_id', $user->id)->orderByDesc('created_at')->get()
+            : ComputeInstance::where('user_id', $user->id)->orderByDesc('created_at')->get();
 
         return response()->json($items);
     }
@@ -40,12 +33,13 @@ class ComputeController extends Controller
     {
         $request->validate([
             'plan' => 'required|string|in:nano,micro,small,medium,large',
+            'type' => 'nullable|string|in:vm,ide,notebook',
             'os'   => 'nullable|string|in:ubuntu-22.04,ubuntu-20.04,debian-12,alpine',
         ]);
 
-        $user     = $request->user();
-        $instance = $this->service->createInstance($user, $request->plan, [
-            'os' => $request->input('os', ComputeService::DEFAULT_OS),
+        $instance = $this->service->createInstance($request->user(), $request->plan, [
+            'type' => $request->input('type', ComputeService::DEFAULT_TYPE),
+            'os'   => $request->input('os',   ComputeService::DEFAULT_OS),
         ]);
 
         return response()->json($instance, 201);
@@ -59,100 +53,62 @@ class ComputeController extends Controller
         $user   = $request->user();
         $action = $request->action;
 
-        // Untuk restore & purge, instance sudah soft-deleted
         if (in_array($action, ['restore', 'purge'])) {
-            $instance = ComputeInstance::onlyTrashed()
-                ->where('id', $id)
-                ->where('user_id', $user->id)
-                ->firstOrFail();
-
-            if ($action === 'restore') {
-                $instance->restore();
-                return response()->json(['restored' => true]);
-            }
-
+            $instance = ComputeInstance::onlyTrashed()->where('id', $id)->where('user_id', $user->id)->firstOrFail();
+            if ($action === 'restore') { $instance->restore(); return response()->json(['restored' => true]); }
             $instance->forceDelete();
             return response()->json(['deleted' => true]);
         }
 
-        $instance = ComputeInstance::where('id', $id)
-            ->where('user_id', $user->id)
-            ->firstOrFail();
+        $instance = ComputeInstance::where('id', $id)->where('user_id', $user->id)->firstOrFail();
 
         if ($action === 'archive') {
-            if ($instance->status !== 'TERMINATED') {
-                return response()->json(['error' => 'Instance harus TERMINATED sebelum diarsipkan.'], 422);
-            }
+            if ($instance->status !== 'TERMINATED') return response()->json(['error' => 'Harus TERMINATED dulu.'], 422);
             $instance->delete();
             return response()->json(['deleted' => true]);
         }
 
         $this->service->changeStatus($instance, $action);
-        $instance->refresh();
-
-        return response()->json($instance);
+        return response()->json($instance->refresh());
     }
 
-    // GET /cloud/api/instances/{id}/stats  (live resource usage)
+    // GET /cloud/api/instances/{id}/stats
     public function stats(Request $request, $id)
     {
-        $user     = $request->user();
-        $instance = ComputeInstance::where('id', $id)
-            ->where('user_id', $user->id)
-            ->firstOrFail();
-
+        $instance = ComputeInstance::where('id', $id)->where('user_id', $request->user()->id)->firstOrFail();
         return response()->json($this->service->getStats($instance));
     }
 
-    // GET /cloud/api/instances/{id}/log  (live progress saat instance sedang PROVISIONING)
+    // GET /cloud/api/instances/{id}/log
     public function log(Request $request, $id)
     {
-        $user     = $request->user();
-        $instance = ComputeInstance::where('id', $id)
-            ->where('user_id', $user->id)
-            ->firstOrFail();
-
-        return response()->json([
-            'status'   => $instance->status,
-            'log'      => $instance->provision_log ?? '',
-            'metadata' => $instance->status === 'FAILED' ? $instance->metadata : null,
-        ]);
+        $instance = ComputeInstance::withTrashed()->where('id', $id)->where('user_id', $request->user()->id)->firstOrFail();
+        return response()->json(['log' => $instance->provision_log, 'status' => $instance->status]);
     }
 
-    // GET /cloud/api/plans  (katalog plan & OS yang tersedia)
+    // GET /cloud/api/plans
     public function plans()
     {
         return response()->json([
             'plans'  => ComputeService::PLANS,
+            'types'  => ComputeService::TYPES,
             'images' => ComputeService::IMAGES,
         ]);
     }
 
-    // GET /cloud/api/usage/export  (admin only)
+    // GET /cloud/api/usage/export (admin)
     public function exportUsage(Request $request)
     {
-        $this->authorize('viewAny', ComputeInstance::class);
-
         $rows     = ComputeInstance::with('user')->orderByDesc('created_at')->get();
         $filename = 'compute-usage-' . now()->format('YmdHis') . '.csv';
 
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['id', 'name', 'user_email', 'plan', 'os', 'status', 'started_at', 'stopped_at', 'usage_hours', 'price_per_hour', 'cost']);
+            fputcsv($out, ['id','name','user_email','type','plan','os','status','started_at','stopped_at','usage_hours','price_per_hour','cost']);
             foreach ($rows as $r) {
-                fputcsv($out, [
-                    $r->id,
-                    $r->name,
-                    $r->user->email ?? null,
-                    $r->plan,
-                    $r->os,
-                    $r->status,
-                    $r->started_at?->toDateTimeString(),
-                    $r->stopped_at?->toDateTimeString(),
-                    $r->usage_hours,
-                    $r->price_per_hour,
-                    $r->cost,
-                ]);
+                fputcsv($out, [$r->id, $r->name, $r->user->email ?? null, $r->metadata['type'] ?? 'vm', $r->plan, $r->os, $r->status,
+                    $r->started_at?->toDateTimeString(), $r->stopped_at?->toDateTimeString(),
+                    $r->usage_hours, $r->price_per_hour, $r->cost]);
             }
             fclose($out);
         }, $filename, ['Content-Type' => 'text/csv']);
