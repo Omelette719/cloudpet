@@ -68,6 +68,9 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/instances/{id}/stats', [ComputeController::class, 'stats'])
             ->name('cloud.api.instances.stats');
+        
+        Route::get('/instances/{id}/log', [ComputeController::class, 'log'])
+            ->name('cloud.api.instances.log');
 
         // Admin only
         Route::get('/usage/export', [ComputeController::class, 'exportUsage'])

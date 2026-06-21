@@ -83,26 +83,41 @@
                     </div>
                 </div>
 
-                {{-- Kanan: info cara pakai --}}
-                <div style="background:var(--cp-soft);border:1px solid var(--cp-soft-border);border-radius:0.95rem;padding:16px;">
-                    <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--cp-ink-muted);margin-bottom:12px;">Cara Koneksi SSH</div>
-                    <ol style="list-style:none;padding:0;margin:0;display:grid;gap:10px;">
-                        @foreach([
-                            ['step'=>'1','text'=>'Buat instance dan tunggu status menjadi RUNNING.'],
-                            ['step'=>'2','text'=>'Klik tombol "Detail" pada card instance untuk melihat kredensial SSH.'],
-                            ['step'=>'3','text'=>'Buka terminal dan jalankan perintah SSH yang tersedia.'],
-                            ['step'=>'4','text'=>'Masukkan password yang tertera. Selesai — VM siap dipakai.'],
-                        ] as $s)
-                        <li style="display:flex;gap:10px;align-items:flex-start;">
-                            <span style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,var(--cp-primary-start),var(--cp-primary-end));color:#fff;font-size:0.7rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ $s['step'] }}</span>
-                            <span style="font-size:0.83rem;color:var(--cp-ink-muted);line-height:1.5;padding-top:2px;">{{ $s['text'] }}</span>
-                        </li>
-                        @endforeach
-                    </ol>
-                    <div class="cp-tip" style="margin-top:14px;">
-                        <span>💡</span>
-                        <span style="font-size:0.8rem;color:var(--cp-ink-muted);">Resource (CPU, RAM) di-enforce oleh Docker — kamu tidak bisa melebihi limit plan yang dipilih.</span>
+                {{-- Kanan: info cara pakai / terminal proses pembuatan --}}
+                <div style="background:var(--cp-soft);border:1px solid var(--cp-soft-border);border-radius:0.95rem;padding:16px;position:relative;min-height:260px;">
+
+                    {{-- Mode default: panduan SSH --}}
+                    <div id="ssh-guide-panel">
+                        <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--cp-ink-muted);margin-bottom:12px;">Cara Koneksi SSH</div>
+                        <ol style="list-style:none;padding:0;margin:0;display:grid;gap:10px;">
+                            @foreach([
+                                ['step'=>'1','text'=>'Buat instance dan tunggu status menjadi RUNNING.'],
+                                ['step'=>'2','text'=>'Klik tombol "Detail" pada card instance untuk melihat kredensial SSH.'],
+                                ['step'=>'3','text'=>'Buka terminal dan jalankan perintah SSH yang tersedia.'],
+                                ['step'=>'4','text'=>'Masukkan password yang tertera. Selesai — VM siap dipakai.'],
+                            ] as $s)
+                            <li style="display:flex;gap:10px;align-items:flex-start;">
+                                <span style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,var(--cp-primary-start),var(--cp-primary-end));color:#fff;font-size:0.7rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ $s['step'] }}</span>
+                                <span style="font-size:0.83rem;color:var(--cp-ink-muted);line-height:1.5;padding-top:2px;">{{ $s['text'] }}</span>
+                            </li>
+                            @endforeach
+                        </ol>
+                        <div class="cp-tip" style="margin-top:14px;">
+                            <span>💡</span>
+                            <span style="font-size:0.8rem;color:var(--cp-ink-muted);">Resource (CPU, RAM) di-enforce oleh Docker — kamu tidak bisa melebihi limit plan yang dipilih.</span>
+                        </div>
                     </div>
+
+                    {{-- Mode aktif: terminal proses pembuatan instance --}}
+                    <div id="provision-panel" style="display:none;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                            <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--cp-ink-muted);">Proses Pembuatan Instance</div>
+                            <span id="provision-status-chip" style="font-size:0.68rem;font-weight:700;padding:3px 9px;border-radius:999px;background:#fef3c7;color:#92400e;">PROVISIONING</span>
+                        </div>
+                        <pre id="provision-terminal" style="background:#1b1f17;color:#cdebb0;font-family:monospace;font-size:0.74rem;line-height:1.55;border-radius:0.7rem;padding:12px 14px;margin:0;height:190px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;"></pre>
+                        <div id="provision-result" style="margin-top:10px;display:none;"></div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -169,6 +184,7 @@
         create: (plan, os) => fetch('{{ route('cloud.api.instances.store') }}', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: JSON.stringify({ plan, os }), credentials: 'same-origin' }).then(r => r.json()),
         action: (id, action) => fetch(`/cloud/api/instances/${id}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: JSON.stringify({ action }), credentials: 'same-origin' }).then(r => r.json()),
         stats:  (id) => fetch(`/cloud/api/instances/${id}/stats`, { credentials: 'same-origin' }).then(r => r.json()),
+        log:    (id) => fetch(`/cloud/api/instances/${id}/log`, { credentials: 'same-origin' }).then(r => r.json()),
     };
 
     const STATUS_CHIP = {
@@ -245,12 +261,78 @@
         const btn = document.getElementById('cp-create-btn');
         btn.disabled   = true;
         btn.innerText  = 'Membuat...';
-        await API.create(selectedPlan, selectedOs);
+
+        let instance;
+        try {
+            instance = await API.create(selectedPlan, selectedOs);
+        } catch (e) {
+            instance = null;
+        }
+
         btn.innerText  = 'Buat Instance';
         btn.disabled   = false;
+
+        if (!instance || !instance.id) {
+            showToast('Gagal membuat instance. Coba lagi.');
+            return;
+        }
+
         showToast('Instance sedang diprovisioning...');
         await refresh();
+        watchProvisioning(instance.id);
     });
+
+    // ── Terminal proses pembuatan instance ───────────────────────────────────
+    function watchProvisioning(instanceId) {
+        const guidePanel  = document.getElementById('ssh-guide-panel');
+        const provPanel   = document.getElementById('provision-panel');
+        const terminalEl  = document.getElementById('provision-terminal');
+        const chipEl       = document.getElementById('provision-status-chip');
+        const resultEl     = document.getElementById('provision-result');
+
+        guidePanel.style.display = 'none';
+        provPanel.style.display  = 'block';
+        terminalEl.innerText      = '';
+        resultEl.style.display    = 'none';
+        chipEl.innerText          = 'PROVISIONING';
+        chipEl.style.cssText      = 'font-size:0.68rem;font-weight:700;padding:3px 9px;border-radius:999px;background:#fef3c7;color:#92400e;';
+
+        const poll = setInterval(async () => {
+            let data;
+            try {
+                data = await API.log(instanceId);
+            } catch (e) {
+                return; // coba lagi di tick berikutnya
+            }
+
+            terminalEl.innerText = data.log || '';
+            terminalEl.scrollTop = terminalEl.scrollHeight;
+
+            if (data.status === 'RUNNING') {
+                clearInterval(poll);
+                chipEl.innerText     = 'RUNNING';
+                chipEl.style.cssText = 'font-size:0.68rem;font-weight:700;padding:3px 9px;border-radius:999px;background:#eaf4dd;color:#3b5136;';
+                showToast('Instance berhasil dibuat & berjalan 🎉');
+                refresh();
+                setTimeout(() => {
+                    provPanel.style.display  = 'none';
+                    guidePanel.style.display = 'block';
+                }, 2000);
+            } else if (data.status === 'FAILED') {
+                clearInterval(poll);
+                chipEl.innerText     = 'FAILED';
+                chipEl.style.cssText = 'font-size:0.68rem;font-weight:700;padding:3px 9px;border-radius:999px;background:#fde8e8;color:#9b2c2c;';
+                resultEl.style.display = 'block';
+                resultEl.innerHTML = `
+                    <div class="cp-tip" style="background:#fde8e8;border-color:#f5c6c6;">
+                        <span>⚠️</span>
+                        <span style="font-size:0.8rem;color:#9b2c2c;">Pembuatan instance gagal. Cek log di atas untuk detailnya, lalu coba lagi atau hubungi admin.</span>
+                    </div>`;
+                showToast('Pembuatan instance gagal ❌');
+                refresh();
+            }
+        }, 1200);
+    }
 
     // ── Tabs ─────────────────────────────────────────────────────────────────
     const sActive   = 'padding:6px 14px;border-radius:999px;font-size:0.8rem;font-weight:700;cursor:pointer;border:1px solid transparent;background:linear-gradient(90deg,var(--cp-primary-start),var(--cp-primary-end));color:#fff;';

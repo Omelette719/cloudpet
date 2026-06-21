@@ -104,6 +104,21 @@ class ComputeController extends Controller
         return response()->json($this->service->getStats($instance));
     }
 
+    // GET /cloud/api/instances/{id}/log  (live progress saat instance sedang PROVISIONING)
+    public function log(Request $request, $id)
+    {
+        $user     = $request->user();
+        $instance = ComputeInstance::where('id', $id)
+            ->where('user_id', $user->id)
+            ->firstOrFail();
+
+        return response()->json([
+            'status'   => $instance->status,
+            'log'      => $instance->provision_log ?? '',
+            'metadata' => $instance->status === 'FAILED' ? $instance->metadata : null,
+        ]);
+    }
+
     // GET /cloud/api/plans  (katalog plan & OS yang tersedia)
     public function plans()
     {

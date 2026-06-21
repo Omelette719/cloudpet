@@ -8,11 +8,6 @@ use Illuminate\Support\Str;
 class ComputeService
 {
     // ─── Katalog plan ────────────────────────────────────────────────────────
-    // cpu   = jumlah vCPU (dipakai di --cpus flag Docker)
-    // memory= RAM dalam MB (dipakai di --memory flag Docker)
-    // disk  = storage GB (informasional, di-enforce via volume quota)
-    // price = Rp per jam (server-authoritative)
-
     const PLANS = [
         'nano'   => ['cpu' => 0.5, 'memory' => 512,  'disk' => 10,  'price' => 500,  'label' => 'Nano'],
         'micro'  => ['cpu' => 1,   'memory' => 1024,  'disk' => 20,  'price' => 1000, 'label' => 'Micro'],
@@ -21,78 +16,118 @@ class ComputeService
         'large'  => ['cpu' => 4,   'memory' => 8192,  'disk' => 160, 'price' => 8000, 'label' => 'Large'],
     ];
 
-    // OS images yang tersedia
+    // OS images yang tersedia — pakai image resmi (selalu ada di Docker Hub),
+    // openssh-server di-install saat container start (lihat buildBootstrapScript()).
+    // 'family' menentukan package manager: apt (ubuntu/debian) atau apk (alpine).
     const IMAGES = [
-        'ubuntu-22.04' => ['image' => 'rastasheep/ubuntu-sshd:22.04', 'label' => 'Ubuntu 22.04'],
-        'ubuntu-20.04' => ['image' => 'rastasheep/ubuntu-sshd:20.04', 'label' => 'Ubuntu 20.04'],
-        'debian-12'    => ['image' => 'linuxserver/openssh-server:latest', 'label' => 'Debian 12'],
-        'alpine'       => ['image' => 'alpine:latest',                     'label' => 'Alpine Linux'],
+        'ubuntu-22.04' => ['image' => 'ubuntu:22.04', 'label' => 'Ubuntu 22.04', 'family' => 'apt'],
+        'ubuntu-20.04' => ['image' => 'ubuntu:20.04', 'label' => 'Ubuntu 20.04', 'family' => 'apt'],
+        'debian-12'    => ['image' => 'debian:12',    'label' => 'Debian 12',    'family' => 'apt'],
+        'alpine'       => ['image' => 'alpine:latest', 'label' => 'Alpine Linux', 'family' => 'apk'],
     ];
 
-    // Default OS
     const DEFAULT_OS = 'ubuntu-22.04';
 
     // ─── Buat instance baru ──────────────────────────────────────────────────
 
     public function createInstance($user, string $planKey, array $options = []): ComputeInstance
     {
+        $instance = $this->initInstance($user, $planKey, $options);
+
+        // Jalankan tahap berat (docker pull/run) di background via artisan command
+        // supaya request HTTP ini langsung balik tanpa nunggu provisioning kelar.
+        // Frontend lalu polling GET /cloud/api/instances/{id}/log untuk live progress.
+        $artisan = base_path('artisan');
+        $logFile = storage_path('logs/provision_' . $instance->id . '.out');
+        $cmd = sprintf(
+            'nohup php %s compute:provision %d > %s 2>&1 &',
+            escapeshellarg($artisan),
+            $instance->id,
+            escapeshellarg($logFile)
+        );
+        exec($cmd);
+
+        return $instance;
+    }
+
+    // ─── Tahap 1: buat record instance secepatnya (dipanggil langsung dari controller) ──
+
+    public function initInstance($user, string $planKey, array $options = []): ComputeInstance
+    {
         $plan   = self::PLANS[$planKey] ?? self::PLANS['micro'];
         $osKey  = $options['os'] ?? self::DEFAULT_OS;
         $osConf = self::IMAGES[$osKey] ?? self::IMAGES[self::DEFAULT_OS];
 
-        // Buat record di DB dulu
-        $instance = ComputeInstance::create([
-            'user_id'  => $user->id,
-            'name'     => 'vm-' . Str::random(8),
-            'plan'     => $planKey,
-            'os'       => $osKey,
-            'status'   => 'PROVISIONING',
-            'metadata' => [],
+        return ComputeInstance::create([
+            'user_id'       => $user->id,
+            'name'          => 'vm-' . Str::random(8),
+            'plan'          => $planKey,
+            'os'            => $osKey,
+            'status'        => 'PROVISIONING',
+            'metadata'      => [],
+            'provision_log' => "[1/4] Menyiapkan instance \"" . $osConf['label'] . "\" (plan: {$plan['label']})...\n",
         ]);
+    }
 
-        // Pilih SSH port (range 10000–19999, per user supaya tidak tabrakan)
+    // ─── Tahap 2: kerjaan berat docker, dipanggil dari command compute:provision ───────
+
+    public function provision(ComputeInstance $instance): ComputeInstance
+    {
+        $user   = $instance->user;
+        $plan   = self::PLANS[$instance->plan] ?? self::PLANS['micro'];
+        $osKey  = $instance->os ?? self::DEFAULT_OS;
+        $osConf = self::IMAGES[$osKey] ?? self::IMAGES[self::DEFAULT_OS];
+
+        $appendLog = function (string $line) use ($instance) {
+            $instance->provision_log = ($instance->provision_log ?? '') . $line . "\n";
+            $instance->save();
+        };
+
         $sshPort = $this->pickAvailablePort(10000, 19999);
 
-        // Storage path untuk persistent disk
         $storagePath = storage_path('app/compute/' . $instance->id);
         if (!is_dir($storagePath)) {
             mkdir($storagePath, 0755, true);
         }
 
-        // Nama container
         $containerName = 'cp_' . $instance->id . '_' . $user->id;
+        $sshPassword   = Str::random(16);
+        $networkName   = 'cp_user_' . $user->id;
 
-        // Password SSH random
-        $sshPassword = Str::random(16);
-
-        // Bangun docker run command
-        // --memory, --cpus untuk enforce resource limit
-        // --network cp_net_{user_id} untuk isolasi per user
-        $networkName = 'cp_user_' . $user->id;
+        $appendLog('[2/4] Menyiapkan network isolasi (' . $networkName . ')...');
         $this->ensureNetwork($networkName);
+
+        $family    = $osConf['family'] ?? 'apt';
+        $bootstrap = $this->buildBootstrapScript($family, $sshPassword);
+        $shell     = $family === 'apk' ? 'sh' : 'bash';
 
         $cmd = sprintf(
             'docker run -d --name %s' .
-            ' --memory=%dm --cpus=%s' .
-            ' --network=%s' .
-            ' -p %d:22' .
-            ' -v %s:/data' .
-            ' -e ROOT_PASSWORD=%s' .
-            ' --restart=unless-stopped' .
-            ' %s',
+                ' --memory=%dm --cpus=%s' .
+                ' --network=%s' .
+                ' -p %d:22' .
+                ' -v %s:/data' .
+                ' --restart=unless-stopped' .
+                ' %s %s -c %s',
             escapeshellarg($containerName),
             $plan['memory'],
             $plan['cpu'],
             escapeshellarg($networkName),
             $sshPort,
             escapeshellarg($storagePath),
-            escapeshellarg($sshPassword),
-            escapeshellarg($osConf['image'])
+            escapeshellarg($osConf['image']),
+            $shell,
+            escapeshellarg($bootstrap)
         );
 
-        exec($cmd, $out, $rc);
+        $appendLog('[3/4] Menyiapkan image "' . $osConf['image'] . '" & install OpenSSH server (bisa makan waktu beberapa puluh detik kalau image/paket belum di-cache)...');
+        exec($cmd . ' 2>&1', $out, $rc);
 
         if ($rc !== 0) {
+            $appendLog('GAGAL: docker run keluar dengan kode ' . $rc);
+            foreach ($out as $line) {
+                $appendLog('  ' . $line);
+            }
             $instance->status   = 'FAILED';
             $instance->metadata = ['error' => 'docker run failed', 'cmd_output' => $out];
             $instance->save();
@@ -100,10 +135,12 @@ class ComputeService
         }
 
         $containerId = trim($out[0] ?? '');
+        $appendLog('Container berhasil dibuat (' . substr($containerId, 0, 12) . ').');
 
-        // Tunggu sebentar lalu ambil IP container di network tersebut
         sleep(1);
         $containerIp = $this->getContainerIp($containerName, $networkName);
+
+        $appendLog('[4/4] Instance siap. SSH port: ' . $sshPort);
 
         $instance->status     = 'RUNNING';
         $instance->started_at = now();
@@ -118,7 +155,7 @@ class ComputeService
             'ssh_password'   => $sshPassword,
             'os'             => $osKey,
             'os_label'       => $osConf['label'],
-            'plan'           => $planKey,
+            'plan'           => $instance->plan,
             'plan_label'     => $plan['label'],
             'resources'      => [
                 'cpu'    => $plan['cpu'],
@@ -132,6 +169,11 @@ class ComputeService
 
         return $instance;
     }
+
+    // ─── Ubah status ─────────────────────────────────────────────────────────
+    // (sisanya sama persis seperti file aslimu — changeStatus, getStats, ensureNetwork,
+    // getContainerIp, pickAvailablePort, computeUsageAndCost, simulateAction —
+    // tidak ada yang diubah, jadi tidak saya ulang di sini.)
 
     // ─── Ubah status ─────────────────────────────────────────────────────────
 
@@ -199,8 +241,8 @@ class ComputeService
         // docker stats --no-stream output format:
         // CONTAINER ID, NAME, CPU %, MEM USAGE / LIMIT, MEM %, NET I/O, BLOCK I/O, PIDS
         $cmd = 'docker stats --no-stream --format ' .
-               '"{{.CPUPerc}},{{.MemUsage}},{{.MemPerc}},{{.NetIO}},{{.BlockIO}}" ' .
-               escapeshellarg($target) . ' 2>/dev/null';
+            '"{{.CPUPerc}},{{.MemUsage}},{{.MemPerc}},{{.NetIO}},{{.BlockIO}}" ' .
+            escapeshellarg($target) . ' 2>/dev/null';
 
         exec($cmd, $out, $rc);
 
@@ -228,12 +270,41 @@ class ComputeService
             exec('docker network create ' . escapeshellarg($networkName) . ' 2>/dev/null');
         }
     }
+    /**
+     * Bikin script yang dijalankan sebagai CMD container: install openssh-server,
+     * set password root, izinkan login root via password, lalu jalankan sshd di foreground
+     * (foreground penting supaya container tidak langsung exit).
+     */
+    protected function buildBootstrapScript(string $family, string $sshPassword): string
+    {
+        $pwLine = "echo 'root:{$sshPassword}' | chpasswd";
+
+        if ($family === 'apk') {
+            // Alpine
+            return "apk add --no-cache openssh-server >/dev/null 2>&1 && " .
+                "ssh-keygen -A >/dev/null 2>&1 && " .
+                "{$pwLine} && " .
+                "sed -ri 's/^#?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config && " .
+                "sed -ri 's/^#?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config && " .
+                "exec /usr/sbin/sshd -D";
+        }
+
+        // Ubuntu / Debian (apt)
+        return "export DEBIAN_FRONTEND=noninteractive && " .
+            "apt-get update -qq && " .
+            "apt-get install -y -qq openssh-server >/dev/null 2>&1 && " .
+            "mkdir -p /run/sshd && " .
+            "{$pwLine} && " .
+            "sed -ri 's/^#?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config && " .
+            "sed -ri 's/^#?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config && " .
+            "exec /usr/sbin/sshd -D";
+    }
 
     protected function getContainerIp(string $containerName, string $network): ?string
     {
         $cmd = 'docker inspect --format ' .
-               '"{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" ' .
-               escapeshellarg($containerName) . ' 2>/dev/null';
+            '"{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" ' .
+            escapeshellarg($containerName) . ' 2>/dev/null';
         exec($cmd, $out, $rc);
         return $rc === 0 ? (trim($out[0] ?? '') ?: null) : null;
     }

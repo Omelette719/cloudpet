@@ -19,6 +19,7 @@ class ComputeInstance extends Model
         'ip_address',
         'status',
         'metadata',
+        'provision_log',
     ];
 
     protected $casts = [
