@@ -15,9 +15,13 @@ class MiniStackService
     // <-- Perbaikan 3: Constructor untuk mengisi nilai baseUrl dan apiKey
     public function __construct()
     {
-        // Mengambil dari .env (Sesuaikan fallback-nya jika perlu)
-        $this->baseUrl = config('services.ministack.endpoint', env('MINISTACK_ENDPOINT', 'http://127.0.0.1:4566'));
-        $this->apiKey = config('services.ministack.key', env('MINISTACK_KEY', 'default-key-sementara'));
+        // Mengakses 'url' sesuai config/services.php
+        $this->baseUrl = config('services.ministack.url') 
+                        ?? env('MINISTACK_URL', 'http://127.0.0.1:4566');
+
+        // Mengakses 'key' sesuai config/services.php
+        $this->apiKey = config('services.ministack.key') 
+                        ?? env('MINISTACK_API_KEY', 'default-key-sementara');
     }
 
     /**

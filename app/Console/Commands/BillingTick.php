@@ -2,61 +2,62 @@
 
 namespace App\Console\Commands;
 
+use App\Models\BlockVolume;
+use App\Models\BillingTransaction;
 use App\Services\BillingService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class BillingTick extends Command
 {
     protected $signature   = 'billing:tick';
-    protected $description = 'Potong saldo user untuk setiap instance yang sedang RUNNING dan Block Volume aktif (dijalankan tiap jam via scheduler).';
+    protected $description = 'Potong saldo user untuk setiap instance RUNNING dan Block Volume aktif.';
 
     public function handle(BillingService $billing): int
     {
         $this->info('[' . now()->toDateTimeString() . '] Billing tick dimulai...');
         
-        // ---------------------------------------------------------
-        // 1. PENAGIHAN COMPUTE INSTANCE (Sistem Lama)
-        // ---------------------------------------------------------
+        // 1. Penagihan Compute Instance (Sistem Lama)
         $billing->runHourlyTick();
         
-        // ---------------------------------------------------------
-        // 2. PENAGIHAN BLOCK STORAGE
-        // ---------------------------------------------------------
+        // 2. Penagihan Block Storage
         $this->info('Memproses penagihan Block Storage...');
         
-        // Ambil semua volume yang aktif (tidak dalam proses pembuatan/penghapusan)
-        $activeVolumes = \App\Models\BlockVolume::with('user')
+        // Gunakan lazyById untuk performa jika data banyak
+        BlockVolume::with('user')
             ->whereIn('status', ['AVAILABLE', 'ATTACHED'])
-            ->get();
+            ->chunk(100, function ($volumes) {
+                foreach ($volumes as $volume) {
+                    $user = $volume->user;
+                    if (!$user) continue;
 
-        foreach ($activeVolumes as $volume) {
-            $user = $volume->user;
-            
-            // Asumsi biaya (contoh: Rp 15 per GB setiap jamnya)
-            // Jadi volume 100GB akan memakan biaya Rp 1.500 per jam.
-            $costPerHour = $volume->size_gb * 15;
+                    $costPerHour = $volume->size_gb * 15;
 
-            if ($user->balance >= $costPerHour) {
-                // Potong saldo
-                $user->decrement('balance', $costPerHour);
+                    DB::transaction(function () use ($user, $volume, $costPerHour) {
+                        if ($user->balance >= $costPerHour) {
+                            $user->decrement('balance', $costPerHour);
 
-                // Catat riwayat transaksi ke DB
-                \App\Models\BillingTransaction::create([
-                    'user_id' => $user->id,
-                    'amount' => $costPerHour,
-                    'type' => 'DEDUCTION',
-                    'description' => "Biaya sewa Block Volume ({$volume->volume_name} - {$volume->size_gb}GB) per jam."
-                ]);
-            } else {
-                // Jika saldo habis, Anda bisa mengatur status akun menjadi SUSPENDED
-                $user->update(['account_status' => 'SUSPENDED']);
-                $this->warn("User ID {$user->id} kehabisan saldo untuk volume {$volume->volume_name}.");
-            }
-        }
+                            // Jika menggunakan HasUuids di Model, tidak perlu set 'id' secara manual
+                            BillingTransaction::create([
+                                'user_id'          => $user->id,
+                                'amount'           => -$costPerHour,
+                                'transaction_type' => 'HOURLY_USAGE',
+                                'description'      => "Biaya sewa Block Volume ({$volume->volume_name} - {$volume->size_gb}GB) per jam.",
+                            ]);
+                        } else {
+                            $user->update(['account_status' => 'SUSPENDED']);
+                        }
+                    });
 
-        $this->info('[' . now()->toDateTimeString() . '] Billing tick selesai.');
-        
-        // Return diletakkan HANYA di bagian paling akhir fungsi
-        return self::SUCCESS;
+                    // Cek status setelah transaksi selesai
+                    if ($user->fresh()->account_status === 'SUSPENDED') {
+                        $this->warn("User ID {$user->id} kehabisan saldo untuk volume {$volume->volume_name}.");
+                    }
+                }
+            });
+
+        $this->info('Billing tick selesai.');
+        return Command::SUCCESS;
     }
 }

@@ -87,15 +87,19 @@
                                 <td style="text-align: right;">
                                     <div style="display: flex; justify-content: flex-end; gap: 6px;">
                                         @if($volume->status === 'AVAILABLE')
-                                            {{-- Tombol Action --}}
-                                            <button style="padding:6px 12px;border-radius:0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid #b8d4f0;background:#e8f2fb;color:#2b5fa0;">
+                                            <button wire:click="openAttachModal({{ $volume->id }})"
+                                                    style="padding:6px 12px;border-radius:0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid #b8d4f0;background:#e8f2fb;color:#2b5fa0;">
                                                 🔗 Attach
                                             </button>
-                                            <button style="padding:6px 12px;border-radius:0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid #f5c6c6;background:#fde8e8;color:#9b2c2c;">
+                                            <button wire:click="deleteVolume({{ $volume->id }})"
+                                                    wire:confirm="Yakin ingin menghapus volume {{ $volume->volume_name }}? Tindakan ini permanen."
+                                                    style="padding:6px 12px;border-radius:0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid #f5c6c6;background:#fde8e8;color:#9b2c2c;">
                                                 🗑️ Delete
                                             </button>
                                         @elseif($volume->status === 'ATTACHED')
-                                            <button style="padding:6px 12px;border-radius:0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid #fde68a;background:#fef3c7;color:#92400e;">
+                                            <button wire:click="detachVolume({{ $volume->id }})"
+                                                    wire:confirm="Lepas volume {{ $volume->volume_name }} dari {{ $volume->computeInstance->name ?? 'instance' }}?"
+                                                    style="padding:6px 12px;border-radius:0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid #fde68a;background:#fef3c7;color:#92400e;">
                                                 🔌 Detach
                                             </button>
                                         @endif
@@ -116,4 +120,33 @@
 
         </div>
     </div>
+    @if($attachingVolumeId)
+    <div style="position:fixed;inset:0;background:rgba(34,48,31,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;">
+        <div class="cp-card" style="width:380px;max-width:92%;">
+            <h3 class="cp-section-title" style="margin-top:0;">Pasang Volume ke Instance</h3>
+
+            @if($instances->isEmpty())
+                <p style="font-size:0.85rem;color:var(--cp-ink-muted);">
+                    Anda belum punya Compute Instance yang aktif. Buat instance duslu di menu Cloud Computing.
+                </p>
+            @else
+                <select wire:model="attachInstanceId"
+                        style="width:100%;padding:0.6rem;border-radius:0.6rem;border:1px solid var(--cp-soft-border);margin-bottom:1rem;">
+                    <option value="">-- Pilih Compute Instance --</option>
+                    @foreach($instances as $instance)
+                        <option value="{{ $instance->id }}">{{ $instance->name }} ({{ $instance->status }})</option>
+                    @endforeach
+                </select>
+            @endif
+
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button wire:click="closeAttachModal" class="cp-btn"
+                        style="width:auto;background:#f0f5ea;color:#61765d;box-shadow:none;">Batal</button>
+                <button wire:click="confirmAttach" class="cp-btn" style="width:auto;" @disabled($instances->isEmpty())>
+                    Pasang
+                </button>
+            </div>
+        </div>
+    </div>
+    @endif
 </div>

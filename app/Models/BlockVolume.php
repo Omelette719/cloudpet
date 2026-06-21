@@ -27,4 +27,19 @@ class BlockVolume extends Model
     {
         return $this->belongsTo(ComputeInstance::class);
     }
+    
+    public function isProvisioning(): bool
+    {
+        return $this->status === 'PROVISIONING';
+    }
+    
+    public function isAvailable(): bool
+    {
+        return $this->status === 'AVAILABLE';
+    }
+
+    public function isError(): bool
+    {
+        return $this->status === 'ERROR';
+    }
 }
