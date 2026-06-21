@@ -1,383 +1,429 @@
 @component('layouts.app')
     <div class="cp-page">
-        <div class="cp-banner">
-                <div style="position: relative; z-index:1;">
-                <p>Cloud Computing</p>
+
+        {{-- BANNER --}}
+        <div class="cp-banner" style="margin-bottom:1rem;">
+            <div style="position:relative; z-index:1;">
+                <p style="font-size:0.75rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; opacity:0.8; margin-bottom:4px;">Cloud Computing</p>
                 <h2>Kelola Instance Virtual</h2>
-                <p style="color:var(--cp-muted);">Pilih plan, buat instance, dan kelola siklus hidup VM Anda. (Demo frontend-only)</p>
+                <p style="color:rgba(255,255,255,0.72); font-weight:400; margin-top:4px;">
+                    Pilih plan, buat instance, dan kelola siklus hidup VM Anda.
+                    <span style="opacity:0.6;">(Demo frontend-only)</span>
+                </p>
             </div>
         </div>
 
-        <div style="margin:1rem 0; display:grid; gap:1rem;">
+        <div style="display:grid; gap:1rem;">
+
+            {{-- BUAT INSTANCE --}}
             <div class="cp-card">
-                <h3 class="cp-section-title">Pilih Plan</h3>
-                <div style="display:grid; gap:0.6rem; grid-template-columns: 1fr 320px; align-items:start;">
+                <h3 class="cp-section-title" style="margin-top:0;">Buat Instance Baru</h3>
+
+                <div style="display:grid; grid-template-columns:1fr 300px; gap:1rem; align-items:start;">
+
+                    {{-- Kiri: form --}}
                     <div>
-                        <label style="display:block; font-weight:700; color:#7d9a77; margin-bottom:6px;">Runtime</label>
-                        <select id="cp-runtime" style="width:100%; padding:8px; border-radius:8px; background:#05120b; color:#eaf6ea; border:1px solid rgba(255,255,255,0.04);">
-                            <option value="micro">Micro (VM)</option>
-                            <option value="small">Small (VM)</option>
-                            <option value="medium">Medium (VM)</option>
-                            <option value="large">Large (VM)</option>
-                            <option value="jupyter">Jupyter (Notebook)</option>
-                            <option value="code-server">IDE (code-server)</option>
-                        </select>
+                        <div class="cp-input-group" style="margin-bottom:14px;">
+                            <label class="cp-label" style="color:var(--cp-ink); font-size:0.78rem;">Runtime</label>
+                            <select id="cp-runtime" class="cp-table-control" style="width:100%; padding:10px 12px; font-size:0.9rem; border-radius:0.75rem;">
+                                <option value="micro">Micro (VM)</option>
+                                <option value="small">Small (VM)</option>
+                                <option value="medium">Medium (VM)</option>
+                                <option value="large">Large (VM)</option>
+                                <option value="jupyter">Jupyter (Notebook)</option>
+                                <option value="code-server">IDE (code-server)</option>
+                            </select>
+                        </div>
 
-                        <div style="display:flex; gap:0.6rem; margin-top:8px;">
-                            <div style="flex:1;">
-                                <label style="display:block; font-weight:700; color:#7d9a77; margin-bottom:6px;">vRAM (GB)</label>
-                                <select id="cp-vram" style="width:100%; padding:8px; border-radius:8px; background:#05120b; color:#eaf6ea; border:1px solid rgba(255,255,255,0.04);">
-                                    <option value="0.5">0.5</option>
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="4">4</option>
-                                    <option value="8">8</option>
+                        <div style="display:grid; grid-template-columns:1fr 140px; gap:0.6rem; margin-bottom:14px;">
+                            <div class="cp-input-group" style="margin-bottom:0;">
+                                <label class="cp-label" style="color:var(--cp-ink); font-size:0.78rem;">vRAM</label>
+                                <select id="cp-vram" class="cp-table-control" style="width:100%; padding:10px 12px; font-size:0.9rem; border-radius:0.75rem;">
+                                    <option value="0.5">0.5 GB</option>
+                                    <option value="1">1 GB</option>
+                                    <option value="2">2 GB</option>
+                                    <option value="4">4 GB</option>
+                                    <option value="8">8 GB</option>
                                 </select>
                             </div>
-                            <div style="width:120px;">
-                                <label style="display:block; font-weight:700; color:#7d9a77; margin-bottom:6px;">vCPU</label>
-                                <select id="cp-cpu" style="width:100%; padding:8px; border-radius:8px; background:#05120b; color:#eaf6ea; border:1px solid rgba(255,255,255,0.04);">
-                                    <option value="10">1</option>
-                                    <option value="50">1</option>
-                                    <option value="100">2</option>
-                                    <option value="200">4</option>
+                            <div class="cp-input-group" style="margin-bottom:0;">
+                                <label class="cp-label" style="color:var(--cp-ink); font-size:0.78rem;">vCPU</label>
+                                <select id="cp-cpu" class="cp-table-control" style="width:100%; padding:10px 12px; font-size:0.9rem; border-radius:0.75rem;">
+                                    <option value="10">1 vCPU</option>
+                                    <option value="50">1 vCPU+</option>
+                                    <option value="100">2 vCPU</option>
+                                    <option value="200">4 vCPU</option>
                                 </select>
                             </div>
                         </div>
 
-                        <div style="display:flex; gap:0.6rem; margin-top:8px; align-items:center;">
-                            <button id="cp-create-btn" class="cp-btn" style="background:#8db96a;padding:10px 12px;font-size:0.95rem;">Buat Instance</button>
-                            <div style="margin-left:auto; text-align:right;">
-                                <div style="font-size:0.78rem; color:#b9d7a8; font-weight:700;">Estimasi Harga</div>
-                                <div id="cp-price" style="font-weight:900; color:#fff; font-size:1.05rem;">Rp0/h</div>
+                        {{-- Harga + Tombol --}}
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; background:var(--cp-soft); border:1px solid var(--cp-soft-border); border-radius:0.9rem; padding:12px 16px; margin-bottom:14px;">
+                            <div>
+                                <div style="font-size:0.72rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--cp-ink-muted);">Estimasi Harga</div>
+                                <div id="cp-price" style="font-size:1.3rem; font-weight:800; color:var(--cp-primary-strong); margin-top:2px;" data-value="0">Rp 0/jam</div>
                             </div>
+                            <button id="cp-create-btn" class="cp-btn" style="width:auto; padding:12px 22px; font-size:0.92rem; border-radius:0.85rem;">
+                                + Buat Instance
+                            </button>
                         </div>
-                        <div style="margin-top:8px; display:flex; align-items:center; gap:12px;">
-                            <label style="display:flex; gap:8px; align-items:center; color:#b9d7a8; font-weight:700;">
-                                <input id="cp-auto-open" type="checkbox" />
-                                <span style="font-size:0.9rem;">Auto-open runtime saat RUNNING</span>
+
+                        {{-- Toggle options --}}
+                        <div style="display:flex; flex-wrap:wrap; gap:1.2rem; padding-top:10px; border-top:1px solid var(--cp-soft-border);">
+                            <label style="display:flex; align-items:center; gap:7px; font-size:0.84rem; font-weight:600; color:var(--cp-ink-muted); cursor:pointer;">
+                                <input id="cp-ssh" type="checkbox" style="width:15px; height:15px; accent-color:var(--cp-primary-strong);">
+                                Enable SSH
+                            </label>
+                            <label style="display:flex; align-items:center; gap:7px; font-size:0.84rem; font-weight:600; color:var(--cp-ink-muted); cursor:pointer;">
+                                <input id="cp-persistent" type="checkbox" style="width:15px; height:15px; accent-color:var(--cp-primary-strong);">
+                                Persistent Disk
+                            </label>
+                            <label style="display:flex; align-items:center; gap:7px; font-size:0.84rem; font-weight:600; color:var(--cp-ink-muted); cursor:pointer;">
+                                <input id="cp-auto-open" type="checkbox" style="width:15px; height:15px; accent-color:var(--cp-primary-strong);">
+                                Auto-open saat Running
                             </label>
                         </div>
                     </div>
 
-                    <div style="background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:10px; border-radius:8px;">
-                        <div style="font-weight:800; color:#f2f7ef; margin-bottom:6px;">Presets</div>
+                    {{-- Kanan: presets --}}
+                    <div style="background:var(--cp-soft); border:1px solid var(--cp-soft-border); border-radius:0.95rem; padding:14px;">
+                        <div style="font-size:0.72rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--cp-ink-muted); margin-bottom:10px;">Presets</div>
                         <div style="display:flex; flex-direction:column; gap:6px;">
-                            <button class="cp-preset cp-btn" data-vram="0.5" data-cpu="10" data-runtime="micro">Micro — 0.5GB / 1 vCPU</button>
-                            <button class="cp-preset cp-btn" data-vram="1" data-cpu="50" data-runtime="small">Small — 1GB / 1 vCPU</button>
-                            <button class="cp-preset cp-btn" data-vram="2" data-cpu="100" data-runtime="medium">Medium — 2GB / 2 vCPU</button>
-                            <button class="cp-preset cp-btn" data-vram="4" data-cpu="200" data-runtime="large">Large — 4GB / 4 vCPU</button>
-                            <button class="cp-preset cp-btn" data-vram="1" data-cpu="100" data-runtime="jupyter">Jupyter — Notebook</button>
-                            <button class="cp-preset cp-btn" data-vram="1" data-cpu="100" data-runtime="code-server">IDE — code-server</button>
+                            @foreach([
+                                ['vram'=>'0.5','cpu'=>'10','runtime'=>'micro',       'label'=>'Micro',   'spec'=>'0.5 GB · 1 vCPU'],
+                                ['vram'=>'1',  'cpu'=>'50','runtime'=>'small',       'label'=>'Small',   'spec'=>'1 GB · 1 vCPU'],
+                                ['vram'=>'2',  'cpu'=>'100','runtime'=>'medium',     'label'=>'Medium',  'spec'=>'2 GB · 2 vCPU'],
+                                ['vram'=>'4',  'cpu'=>'200','runtime'=>'large',      'label'=>'Large',   'spec'=>'4 GB · 4 vCPU'],
+                                ['vram'=>'1',  'cpu'=>'100','runtime'=>'jupyter',    'label'=>'Jupyter', 'spec'=>'Notebook'],
+                                ['vram'=>'1',  'cpu'=>'100','runtime'=>'code-server','label'=>'IDE',     'spec'=>'code-server'],
+                            ] as $preset)
+                            <button class="cp-preset"
+                                data-vram="{{ $preset['vram'] }}"
+                                data-cpu="{{ $preset['cpu'] }}"
+                                data-runtime="{{ $preset['runtime'] }}"
+                                style="display:flex; justify-content:space-between; align-items:center; width:100%; padding:9px 12px; background:#fff; border:1px solid var(--cp-soft-border); border-radius:0.75rem; font-size:0.84rem; font-weight:700; color:var(--cp-ink); cursor:pointer; text-align:left; transition:background 0.15s, border-color 0.15s;">
+                                <span>{{ $preset['label'] }}</span>
+                                <span style="font-size:0.72rem; font-weight:600; color:var(--cp-ink-muted); background:var(--cp-soft); border:1px solid var(--cp-soft-border); border-radius:999px; padding:2px 8px;">{{ $preset['spec'] }}</span>
+                            </button>
+                            @endforeach
                         </div>
                     </div>
                 </div>
-                <div style="margin-top:0.8rem; display:flex; gap:0.8rem; align-items:center;">
-                    <label style="display:flex; gap:0.5rem; align-items:center; font-weight:700; color:#7d9a77;">
-                        <input id="cp-ssh" type="checkbox" /> Enable SSH
-                    </label>
-                    <label style="display:flex; gap:0.5rem; align-items:center; font-weight:700; color:#7d9a77;">
-                        <input id="cp-persistent" type="checkbox" /> Persistent Disk
-                    </label>
+            </div>
+
+            {{-- INSTANCE LIST --}}
+            <div class="cp-card">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                    <h3 class="cp-section-title" style="margin:0;">Instance Anda</h3>
+                    <div style="display:flex; gap:6px;">
+                        <button id="tab-active"
+                            style="padding:6px 14px; border-radius:999px; font-size:0.8rem; font-weight:700; cursor:pointer; border:1px solid transparent; background:linear-gradient(90deg,var(--cp-primary-start),var(--cp-primary-end)); color:#fff;">
+                            Active
+                        </button>
+                        <button id="tab-archived"
+                            style="padding:6px 14px; border-radius:999px; font-size:0.8rem; font-weight:700; cursor:pointer; border:1px solid var(--cp-soft-border); background:#fff; color:var(--cp-ink-muted);">
+                            Archived
+                        </button>
+                    </div>
+                </div>
+
+                <div id="cp-instances-wrap" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:0.85rem;">
+                    {{-- dirender oleh JS --}}
                 </div>
             </div>
 
+            {{-- CATATAN --}}
             <div class="cp-card">
-                <h3 class="cp-section-title">Instance Anda</h3>
-                <div id="cp-instances-wrap" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:0.9rem;">
-                    <!-- instances rendered here -->
+                <h3 class="cp-section-title" style="margin-top:0;">Catatan & Harga</h3>
+                <div class="cp-tip" style="margin-bottom:10px;">
+                    <span style="font-size:1rem;">💡</span>
+                    <span style="font-size:0.84rem; color:var(--cp-ink-muted);">Harga merupakan simulasi. Faktur aktual tidak akan dibuat di demo ini.</span>
                 </div>
-            </div>
-
-            <div class="cp-card">
-                <h3 class="cp-section-title">Pricing & Notes</h3>
-                <p style="color:#6f8b69; font-weight:700;">Harga merupakan simulasi. Faktur aktual tidak akan dibuat di demo ini.</p>
-                <ul>
-                    <li>Biaya dihitung per jam (estimasi).</li>
-                    <li>Operasi provisioning bersifat asinkron pada implementasi nyata.</li>
-                    <li>Untuk produksi, integrasikan dengan Ministack API dan queue worker.</li>
+                <ul style="list-style:none; display:grid; gap:6px; padding:0; margin:0;">
+                    @foreach([
+                        'Biaya dihitung per jam berdasarkan vCPU dan vRAM yang dipilih.',
+                        'Operasi provisioning bersifat asinkron pada implementasi nyata.',
+                        'Untuk produksi, integrasikan dengan Ministack API dan queue worker.',
+                    ] as $note)
+                    <li style="display:flex; align-items:flex-start; gap:8px; font-size:0.84rem; color:var(--cp-ink-muted);">
+                        <span style="width:5px; height:5px; border-radius:50%; background:var(--cp-primary-end); margin-top:7px; flex-shrink:0; display:block;"></span>
+                        {{ $note }}
+                    </li>
+                    @endforeach
                 </ul>
             </div>
-        </div>
 
+        </div>{{-- /grid --}}
+    </div>{{-- /cp-page --}}
+
+    {{-- TEMPLATE INSTANCE CARD --}}
     <template id="cp-instance-template">
-        <div class="cp-auth-card" style="padding:12px; border-radius:12px; background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)); box-shadow:none;">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
+        <div style="background:#fff; border:1px solid var(--cp-soft-border); border-radius:1rem; padding:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                 <div>
-                    <div style="font-weight:800; font-size:1rem; color:#f2f7ef;">__NAME__</div>
-                    <div style="font-size:0.78rem; color:#b9d7a8; font-weight:700;">__PLAN__</div>
+                    <div style="font-weight:800; font-size:0.95rem; color:var(--cp-ink);">__NAME__</div>
+                    <div style="font-size:0.76rem; color:var(--cp-ink-muted); margin-top:2px; font-weight:600;">__PLAN__</div>
                 </div>
-                <div style="text-align:right">
-                    <div class="cp-chip" data-status="__STATUS__">__STATUS__</div>
-                </div>
+                <div class="cp-chip" data-status="__STATUS__">__STATUS__</div>
             </div>
-            <div style="display:flex; gap:0.5rem; margin-top:0.8rem;">
-                <button class="cp-action-start cp-btn" style="background:#8db96a;padding:8px 10px;font-size:0.85rem;">Start</button>
-                <button class="cp-action-stop cp-btn" style="background:#c9c9c9;color:#333;padding:8px 10px;font-size:0.85rem;">Stop</button>
-                <button class="cp-action-term cp-btn" style="background:#f97373;padding:8px 10px;font-size:0.85rem;">Terminate</button>
-            </div>
+            <div class="cp-instance-meta" style="font-size:0.78rem; color:var(--cp-ink-muted); margin:10px 0 0; line-height:1.6; padding-top:8px; border-top:1px solid var(--cp-soft-border);"></div>
+            <div class="cp-instance-actions" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;"></div>
         </div>
     </template>
 
-    <!-- Confirmation modal -->
+    {{-- MODAL KONFIRMASI --}}
     <div id="cp-confirm-modal" style="display:none; position:fixed; inset:0; align-items:center; justify-content:center; z-index:9999;">
-        <div style="position:absolute; inset:0; background:rgba(2,6,23,0.6);"></div>
-        <div style="position:relative; background:#062017; color:#f1f9f3; padding:20px; border-radius:12px; width:400px; max-width:92%; box-shadow:0 10px 40px rgba(2,6,23,0.7);">
-            <div id="cp-confirm-message" style="font-weight:800; margin-bottom:14px; font-size:1rem; color:#ffffff;">Konfirmasi</div>
-            <div style="font-size:0.95rem; color:#cfe7d1; margin-bottom:14px;">Apakah Anda yakin ingin menghapus instance ini? Tindakan ini tidak dapat dibatalkan.</div>
-            <div style="display:flex; gap:10px; justify-content:flex-end;">
-                <button id="cp-confirm-cancel" class="cp-btn" style="background:#d1d5db;color:#0b1220;padding:9px 14px;border-radius:8px;">Batal</button>
-                <button id="cp-confirm-ok" class="cp-btn" style="background:#dc2626;padding:9px 14px;color:#ffffff;border-radius:8px;">Ya, Hapus</button>
+        <div style="position:absolute; inset:0; background:rgba(34,48,31,0.55);"></div>
+        <div style="position:relative; background:#fff; border-radius:1.25rem; padding:24px; width:380px; max-width:92%; box-shadow:0 16px 44px rgba(34,48,31,0.22); border:1px solid var(--cp-soft-border);">
+            <div id="cp-confirm-message" style="font-size:0.95rem; font-weight:800; color:var(--cp-ink); margin-bottom:8px;"></div>
+            <div style="font-size:0.85rem; color:var(--cp-ink-muted); margin-bottom:20px;">Tindakan ini tidak dapat dibatalkan setelah dikonfirmasi.</div>
+            <div style="display:flex; gap:8px; justify-content:flex-end;">
+                <button id="cp-confirm-cancel"
+                    style="padding:9px 18px; border-radius:0.75rem; border:1px solid var(--cp-soft-border); background:#fff; color:var(--cp-ink); font-size:0.875rem; font-weight:700; cursor:pointer;">
+                    Batal
+                </button>
+                <button id="cp-confirm-ok"
+                    style="padding:9px 18px; border-radius:0.75rem; border:0; background:#c53030; color:#fff; font-size:0.875rem; font-weight:700; cursor:pointer;">
+                    Ya, Lanjutkan
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Toast container -->
+    {{-- TOAST --}}
     <div id="cp-toast-container" style="position:fixed; right:20px; bottom:20px; z-index:10000; display:flex; flex-direction:column; gap:8px; pointer-events:none;"></div>
 
     <script>
-        (function(){
-            const API = {
-                list: async () => fetch('{{ route('cloud.api.instances') }}', { credentials: 'same-origin' }).then(r=>r.ok? r.json(): [] ).catch(()=>[]),
-                create: async (plan, opts = {}) => fetch('{{ route('cloud.api.instances.store') }}', { method:'POST', headers: { 'Content-Type':'application/json','X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }, body: JSON.stringify(Object.assign({plan}, opts)), credentials: 'same-origin' }).then(r=>r.json()),
-                action: async (id, action) => fetch(`/cloud/api/instances/${id}/action`, { method:'POST', headers: { 'Content-Type':'application/json','X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }, body: JSON.stringify({action}), credentials: 'same-origin' }).then(r=>r.json()),
-            };
+    (function(){
+        const API = {
+            list: async (archived = false) => {
+                const url = '{{ route('cloud.api.instances') }}' + (archived ? '?archived=1' : '');
+                return fetch(url, { credentials: 'same-origin' }).then(r => r.ok ? r.json() : []).catch(() => []);
+            },
+            create: async (plan, opts = {}) => fetch('{{ route('cloud.api.instances.store') }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
+                body: JSON.stringify(Object.assign({ plan }, opts)),
+                credentials: 'same-origin'
+            }).then(r => r.json()),
+            action: async (id, action) => fetch(`/cloud/api/instances/${id}/action`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
+                body: JSON.stringify({ action }),
+                credentials: 'same-origin'
+            }).then(r => r.json()),
+        };
 
-            // modal helper
-            function showConfirm(message, onConfirm) {
-                const modal = document.getElementById('cp-confirm-modal');
-                const msg = document.getElementById('cp-confirm-message');
-                const ok = document.getElementById('cp-confirm-ok');
-                const cancel = document.getElementById('cp-confirm-cancel');
-                msg.innerText = message;
-                modal.style.display = 'flex';
-                function cleanup() {
-                    modal.style.display = 'none';
-                    ok.removeEventListener('click', okHandler);
-                    cancel.removeEventListener('click', cancelHandler);
-                }
-                function okHandler() { cleanup(); onConfirm(); }
-                function cancelHandler() { cleanup(); }
-                ok.addEventListener('click', okHandler);
-                cancel.addEventListener('click', cancelHandler);
-            }
+        let currentTab = 'active';
 
-            // toast helper
-            function showToast(message, timeout = 4000) {
-                try {
-                    const container = document.getElementById('cp-toast-container');
-                    const t = document.createElement('div');
-                    t.style.pointerEvents = 'auto';
-                    t.style.background = 'linear-gradient(90deg,#0b3b22,#143f2b)';
-                    t.style.color = '#e6f9ea';
-                    t.style.padding = '10px 14px';
-                    t.style.borderRadius = '8px';
-                    t.style.boxShadow = '0 6px 18px rgba(2,6,23,0.6)';
-                    t.style.fontWeight = '700';
-                    t.style.fontSize = '0.95rem';
-                    t.innerText = message;
-                    container.appendChild(t);
-                    setTimeout(() => { t.style.transition = 'opacity 300ms'; t.style.opacity = '0'; setTimeout(()=> t.remove(), 350); }, timeout);
-                } catch(e) { /* ignore */ }
-            }
+        // --- Tab ---
+        const tabActive   = document.getElementById('tab-active');
+        const tabArchived = document.getElementById('tab-archived');
 
-            // auto-open preference (persisted in localStorage)
-            const AUTO_OPEN_KEY = 'cloudpet_auto_open';
-            function isAutoOpenEnabled(){
-                try {
-                    const v = localStorage.getItem(AUTO_OPEN_KEY);
-                    if (v === null) return true; // default enabled
-                    return v === '1';
-                } catch(e){ return true; }
-            }
-            // initialize checkbox state
-            try {
-                const cb = document.getElementById('cp-auto-open');
-                if (cb) {
-                    cb.checked = isAutoOpenEnabled();
-                    cb.addEventListener('change', ()=>{
-                        try { localStorage.setItem(AUTO_OPEN_KEY, cb.checked ? '1' : '0'); } catch(e){}
-                    });
-                }
-            } catch(e){}
+        const styleActive   = 'padding:6px 14px; border-radius:999px; font-size:0.8rem; font-weight:700; cursor:pointer; border:1px solid transparent; background:linear-gradient(90deg,var(--cp-primary-start),var(--cp-primary-end)); color:#fff;';
+        const styleInactive = 'padding:6px 14px; border-radius:999px; font-size:0.8rem; font-weight:700; cursor:pointer; border:1px solid var(--cp-soft-border); background:#fff; color:var(--cp-ink-muted);';
 
-            function renderItems(items){
-                const wrap = document.getElementById('cp-instances-wrap');
-                wrap.innerHTML='';
-                if(!items || items.length===0){ wrap.innerHTML = '<div style="grid-column:1/-1;color:#7d9a77;font-weight:700;padding:1rem;">Belum ada instance. Pilih plan dan buat instance.</div>'; return; }
-                    const tpl = document.getElementById('cp-instance-template').innerHTML;
-                items.forEach(it=>{
-                    const html = tpl.replace(/__NAME__/g,it.name).replace('__PLAN__',it.plan).replace(/__STATUS__/g,it.status);
-                    const el = document.createElement('div'); el.innerHTML = html; const node = el.firstElementChild;
-                    // make instance card look nicer
-                    node.classList.add('cp-instance-card');
-                    node.querySelector('.cp-chip').style.background = 'var(--cp-chip-bg)';
-                    node.querySelector('.cp-action-start').addEventListener('click', ()=>{ API.action(it.id,'start').then(()=>refresh()); });
-                    node.querySelector('.cp-action-stop').addEventListener('click', ()=>{ API.action(it.id,'stop').then(()=>refresh()); });
-                    node.querySelector('.cp-action-term').addEventListener('click', ()=>{ showConfirm('Yakin ingin menghapus instance ini?', ()=>{ API.action(it.id,'terminate').then(()=>refresh()); }); });
-                    // archive button visible when TERMINATED
-                    if (it.status === 'TERMINATED') {
-                        const arch = document.createElement('button');
-                        arch.className = 'cp-action-archive cp-btn';
-                        arch.style.background = '#6b7280';
-                        arch.style.color = '#fff';
-                        arch.style.padding = '8px 10px';
-                        arch.style.fontSize = '0.85rem';
-                        arch.style.marginLeft = '6px';
-                        arch.innerText = 'Archive';
-                        arch.addEventListener('click', ()=>{ showConfirm('Archive instance ini? (akan disembunyikan dari daftar)', ()=>{ API.action(it.id,'archive').then((res)=>{ if(res && res.deleted){ showToast('Instance diarsipkan'); } else { showToast('Gagal mengarsipkan'); } refresh(); }); }); });
-                        node.querySelector('.cp-action-term').after(arch);
-                    }
-                    // show SSH and volume info if present
-                    if (it.metadata && it.metadata.ssh_host_port) {
-                        const ssh = document.createElement('div');
-                        ssh.style.marginTop = '8px';
-                        ssh.style.fontSize = '0.78rem';
-                        ssh.style.color = '#cfe7c9';
-                        ssh.innerText = `SSH: ssh root@localhost -p ${it.metadata.ssh_host_port}`;
-                        node.appendChild(ssh);
-                    }
-                    if (it.metadata && it.metadata.volumePath) {
-                        const vol = document.createElement('div');
-                        vol.style.marginTop = '6px';
-                        vol.style.fontSize = '0.78rem';
-                        vol.style.color = '#b9d7a8';
-                        vol.innerText = `Disk: ${it.metadata.volumePath}`;
-                        node.appendChild(vol);
-                    }
-                    // show requested configuration
-                    if (it.metadata && it.metadata.requested) {
-                        const req = it.metadata.requested;
-                        const cfg = document.createElement('div');
-                        cfg.style.marginTop = '8px';
-                        cfg.style.fontSize = '0.78rem';
-                        cfg.style.color = '#cfe7c9';
-                        const parts = [];
-                        if (req.runtime) parts.push(req.runtime);
-                        if (req.vram_gb) parts.push(req.vram_gb + 'GB RAM');
-                        if (req.cpu) parts.push(req.cpu + ' CPU');
-                        if (req.size) parts.push(req.size);
-                        if (req.price) parts.push('Rp' + req.price + '/h');
-                        cfg.innerText = parts.join(' • ');
-                        node.appendChild(cfg);
-                    }
-                    if (it.metadata && it.metadata.jupyter_host_port && it.metadata.jupyter_token) {
-                        const link = document.createElement('a');
-                        link.style.display = 'inline-block';
-                        link.style.marginTop = '8px';
-                        link.style.marginRight = '8px';
-                        link.style.fontSize = '0.9rem';
-                        link.style.color = '#9fe6b0';
-                        link.style.textDecoration = 'underline';
-                        link.setAttribute('target','_blank');
-                        link.href = `http://localhost:${it.metadata.jupyter_host_port}/?token=${it.metadata.jupyter_token}`;
-                        link.innerText = `Buka Jupyter (:${it.metadata.jupyter_host_port})`;
-                        node.appendChild(link);
-
-                        // Auto-open once when instance first becomes RUNNING in this browser session
-                        try {
-                            const key = 'cloudpet_opened_' + it.id;
-                            if (it.status === 'RUNNING' && !sessionStorage.getItem(key) && isAutoOpenEnabled()) {
-                                showToast('Membuka Jupyter...');
-                                window.open(link.href, '_blank');
-                                sessionStorage.setItem(key, '1');
-                            }
-                        } catch (e) { /* ignore sessionStorage errors */ }
-                    }
-                    if (it.metadata && it.metadata.codeserver_host_port && it.metadata.codeserver_password) {
-                        const link2 = document.createElement('a');
-                        link2.style.display = 'inline-block';
-                        link2.style.marginTop = '6px';
-                        link2.style.marginRight = '8px';
-                        link2.style.fontSize = '0.9rem';
-                        link2.style.color = '#9fe6b0';
-                        link2.setAttribute('target','_blank');
-                        link2.href = `http://localhost:${it.metadata.codeserver_host_port}`;
-                        link2.innerText = `Buka IDE (:${it.metadata.codeserver_host_port})`;
-                        node.appendChild(link2);
-
-                        const info = document.createElement('div');
-                        info.style.display = 'inline-block';
-                        info.style.marginTop = '6px';
-                        info.style.fontSize = '0.78rem';
-                        info.style.color = '#b9d7a8';
-                        info.innerText = `(password: ${it.metadata.codeserver_password})`;
-                        node.appendChild(info);
-
-                        // Auto-open once when instance first becomes RUNNING in this browser session
-                        try {
-                            const key2 = 'cloudpet_opened_' + it.id;
-                            if (it.status === 'RUNNING' && !sessionStorage.getItem(key2) && isAutoOpenEnabled()) {
-                                showToast('Membuka IDE (code-server)...');
-                                window.open(link2.href, '_blank');
-                                sessionStorage.setItem(key2, '1');
-                            }
-                        } catch (e) { /* ignore sessionStorage errors */ }
-                    }
-                    wrap.appendChild(node);
-                });
-            }
-
-            async function refresh(){
-                const items = await API.list(); renderItems(items);
-            }
-
-            // Pricing model (simple): cpuUnit * rate + vramGB * rate
-            const CPU_RATE = 4; // Rp per cpu unit
-            const VRAM_RATE = 250; // Rp per GB
-
-            function formatRp(n){ return 'Rp' + n.toLocaleString('id-ID') + '/h'; }
-
-            function calculatePrice(cpu, vramGb){
-                const price = Math.round((cpu * CPU_RATE) + (vramGb * VRAM_RATE));
-                return price;
-            }
-
-            function updatePriceDisplay(){
-                const cpu = parseInt(document.getElementById('cp-cpu').value || '0',10);
-                const vram = parseFloat(document.getElementById('cp-vram').value || '0');
-                const price = calculatePrice(cpu, vram);
-                document.getElementById('cp-price').innerText = formatRp(price);
-                // store on element for create
-                document.getElementById('cp-price').dataset.value = price;
-            }
-
-            // Preset buttons behavior
-            document.querySelectorAll('.cp-preset').forEach(b=>{
-                b.addEventListener('click', ()=>{
-                    const vram = b.dataset.vram;
-                    const cpu = b.dataset.cpu;
-                    const runtime = b.dataset.runtime;
-                    document.getElementById('cp-vram').value = vram;
-                    document.getElementById('cp-cpu').value = cpu;
-                    document.getElementById('cp-runtime').value = runtime;
-                    updatePriceDisplay();
-                });
-            });
-
-            document.getElementById('cp-vram').addEventListener('change', updatePriceDisplay);
-            document.getElementById('cp-cpu').addEventListener('change', updatePriceDisplay);
-            document.getElementById('cp-runtime').addEventListener('change', updatePriceDisplay);
-
-            document.getElementById('cp-create-btn').addEventListener('click', async ()=>{
-                const runtime = document.getElementById('cp-runtime').value;
-                const vram = parseFloat(document.getElementById('cp-vram').value);
-                const cpu = parseInt(document.getElementById('cp-cpu').value,10);
-                const price = parseFloat(document.getElementById('cp-price').dataset.value || 0);
-                const ssh = document.getElementById('cp-ssh').checked;
-                const persistent = document.getElementById('cp-persistent').checked;
-                // use runtime as the 'plan' identifier for now
-                await API.create(runtime, { runtime, vram, cpu, price, ssh, persistent });
-                await refresh();
-            });
-
-            // initial setup
-            updatePriceDisplay();
-            // initial load
+        function setTab(t) {
+            currentTab = t;
+            tabActive.style.cssText   = t === 'active'   ? styleActive : styleInactive;
+            tabArchived.style.cssText = t === 'archived' ? styleActive : styleInactive;
             refresh();
-            // poll status every 5 seconds
-            setInterval(refresh, 5000);
-        })();
+        }
+        tabActive.addEventListener('click',   () => setTab('active'));
+        tabArchived.addEventListener('click', () => setTab('archived'));
+
+        // --- Modal ---
+        function showConfirm(message, onConfirm) {
+            const modal  = document.getElementById('cp-confirm-modal');
+            const msg    = document.getElementById('cp-confirm-message');
+            const ok     = document.getElementById('cp-confirm-ok');
+            const cancel = document.getElementById('cp-confirm-cancel');
+            msg.innerText = message;
+            modal.style.display = 'flex';
+            function cleanup() { modal.style.display = 'none'; ok.removeEventListener('click', okH); cancel.removeEventListener('click', cancelH); }
+            function okH()     { cleanup(); onConfirm(); }
+            function cancelH() { cleanup(); }
+            ok.addEventListener('click', okH);
+            cancel.addEventListener('click', cancelH);
+        }
+
+        // --- Toast ---
+        function showToast(message) {
+            const c = document.getElementById('cp-toast-container');
+            const t = document.createElement('div');
+            t.style.cssText = 'pointer-events:auto; background:linear-gradient(90deg,#3b5136,#4a6344); color:#eef6e8; padding:10px 16px; border-radius:0.85rem; font-weight:700; font-size:0.875rem; box-shadow:0 6px 18px rgba(34,48,31,0.22);';
+            t.innerText = message;
+            c.appendChild(t);
+            setTimeout(() => { t.style.transition = 'opacity 300ms'; t.style.opacity = '0'; setTimeout(() => t.remove(), 350); }, 3500);
+        }
+
+        // --- Auto-open ---
+        const AUTO_OPEN_KEY = 'cloudpet_auto_open';
+        function isAutoOpenEnabled() { try { const v = localStorage.getItem(AUTO_OPEN_KEY); return v === null ? true : v === '1'; } catch(e) { return true; } }
+        try {
+            const cb = document.getElementById('cp-auto-open');
+            if (cb) { cb.checked = isAutoOpenEnabled(); cb.addEventListener('change', () => { try { localStorage.setItem(AUTO_OPEN_KEY, cb.checked ? '1' : '0'); } catch(e){} }); }
+        } catch(e){}
+
+        // --- Status chip styling ---
+        const STATUS_STYLE = {
+            RUNNING:    'background:#eaf4dd; color:#3b5136;',
+            STOPPED:    'background:#f0f5ea; color:#719068;',
+            TERMINATED: 'background:#fde8e8; color:#9b2c2c;',
+            PENDING:    'background:#fef3c7; color:#92400e;',
+        };
+
+        // --- Render ---
+        function renderItems(items) {
+            const wrap = document.getElementById('cp-instances-wrap');
+            wrap.innerHTML = '';
+            if (!items || items.length === 0) {
+                wrap.innerHTML = '<div style="grid-column:1/-1; padding:2rem; text-align:center; color:var(--cp-ink-muted); font-size:0.88rem;">Belum ada instance.</div>';
+                return;
+            }
+            const tpl = document.getElementById('cp-instance-template').innerHTML;
+            items.forEach(it => {
+                const html = tpl.replace(/__NAME__/g, it.name).replace(/__PLAN__/g, it.plan).replace(/__STATUS__/g, it.status);
+                const el = document.createElement('div'); el.innerHTML = html;
+                const node = el.firstElementChild;
+
+                // chip style
+                const chip = node.querySelector('.cp-chip');
+                const chipStyle = STATUS_STYLE[(it.status || '').toUpperCase()] || STATUS_STYLE.STOPPED;
+                chip.style.cssText = chipStyle + 'font-size:0.7rem; font-weight:700; padding:3px 9px; border-radius:999px;';
+
+                // meta
+                const metaParts = [];
+                if (it.metadata?.requested) {
+                    const r = it.metadata.requested;
+                    if (r.runtime)  metaParts.push(r.runtime);
+                    if (r.vram_gb)  metaParts.push(r.vram_gb + ' GB');
+                    if (r.cpu)      metaParts.push(r.cpu + ' CPU');
+                }
+                if (it.metadata?.volumePath)     metaParts.push('Disk: ' + it.metadata.volumePath);
+                if (it.metadata?.ssh_host_port)  metaParts.push('SSH :' + it.metadata.ssh_host_port);
+                node.querySelector('.cp-instance-meta').innerText = metaParts.join(' · ');
+
+                // actions
+                const actEl = node.querySelector('.cp-instance-actions');
+                const btnBase = 'padding:6px 12px; border-radius:0.65rem; font-size:0.78rem; font-weight:700; cursor:pointer; border:1px solid;';
+
+                if (currentTab === 'active') {
+                    const btnStart = document.createElement('button');
+                    btnStart.innerText = 'Start';
+                    btnStart.style.cssText = btnBase + 'background:#eaf4dd; color:#3b5136; border-color:#c6e0a8;';
+                    btnStart.addEventListener('click', () => API.action(it.id, 'start').then(() => refresh()));
+
+                    const btnStop = document.createElement('button');
+                    btnStop.innerText = 'Stop';
+                    btnStop.style.cssText = btnBase + 'background:#f0f5ea; color:#61765d; border-color:var(--cp-soft-border);';
+                    btnStop.addEventListener('click', () => API.action(it.id, 'stop').then(() => refresh()));
+
+                    const btnTerm = document.createElement('button');
+                    btnTerm.innerText = 'Terminate';
+                    btnTerm.style.cssText = btnBase + 'background:#fde8e8; color:#9b2c2c; border-color:#f5c6c6;';
+                    btnTerm.addEventListener('click', () => showConfirm('Terminate instance ' + it.name + '?', () => API.action(it.id, 'terminate').then(() => refresh())));
+
+                    actEl.append(btnStart, btnStop, btnTerm);
+
+                    if ((it.status || '').toUpperCase() === 'TERMINATED') {
+                        const arch = document.createElement('button');
+                        arch.innerText = 'Archive';
+                        arch.style.cssText = btnBase + 'background:#e8f2fb; color:#2b5fa0; border-color:#b8d4f0;';
+                        arch.addEventListener('click', () => showConfirm('Archive instance ini?', () => API.action(it.id, 'archive').then(res => { showToast(res?.deleted ? 'Instance diarsipkan' : 'Gagal mengarsipkan'); refresh(); })));
+                        actEl.appendChild(arch);
+                    }
+                } else {
+                    const btnRestore = document.createElement('button');
+                    btnRestore.innerText = 'Restore';
+                    btnRestore.style.cssText = btnBase + 'background:#eaf4dd; color:#3b5136; border-color:#c6e0a8;';
+                    btnRestore.addEventListener('click', () => showConfirm('Pulihkan instance ini?', () => API.action(it.id, 'restore').then(res => { showToast(res?.restored ? 'Instance dipulihkan' : 'Gagal memulihkan'); refresh(); })));
+
+                    const btnPurge = document.createElement('button');
+                    btnPurge.innerText = 'Hapus Permanen';
+                    btnPurge.style.cssText = btnBase + 'background:#fde8e8; color:#9b2c2c; border-color:#f5c6c6;';
+                    btnPurge.addEventListener('click', () => showConfirm('Hapus permanen? Tidak dapat dibatalkan.', () => API.action(it.id, 'purge').then(res => { showToast(res?.deleted ? 'Dihapus permanen' : 'Gagal menghapus'); refresh(); })));
+
+                    actEl.append(btnRestore, btnPurge);
+                }
+
+                // links Jupyter / code-server
+                if (it.metadata?.jupyter_host_port && it.metadata?.jupyter_token) {
+                    const a = document.createElement('a');
+                    a.href = `http://localhost:${it.metadata.jupyter_host_port}/?token=${it.metadata.jupyter_token}`;
+                    a.target = '_blank';
+                    a.style.cssText = 'display:block; margin-top:8px; font-size:0.8rem; color:var(--cp-primary-strong); font-weight:700; text-decoration:underline;';
+                    a.innerText = `Buka Jupyter (:${it.metadata.jupyter_host_port})`;
+                    node.appendChild(a);
+                }
+                if (it.metadata?.codeserver_host_port) {
+                    const a = document.createElement('a');
+                    a.href = `http://localhost:${it.metadata.codeserver_host_port}`;
+                    a.target = '_blank';
+                    a.style.cssText = 'display:block; margin-top:4px; font-size:0.8rem; color:var(--cp-primary-strong); font-weight:700; text-decoration:underline;';
+                    a.innerText = `Buka IDE (:${it.metadata.codeserver_host_port})`;
+                    node.appendChild(a);
+                    if (it.metadata.codeserver_password) {
+                        const info = document.createElement('div');
+                        info.style.cssText = 'font-size:0.72rem; color:var(--cp-ink-muted); margin-top:2px;';
+                        info.innerText = `Password: ${it.metadata.codeserver_password}`;
+                        node.appendChild(info);
+                    }
+                }
+
+                wrap.appendChild(node);
+            });
+        }
+
+        async function refresh() {
+            const items = await API.list(currentTab === 'archived');
+            renderItems(items);
+        }
+
+        // --- Pricing ---
+        const CPU_RATE = 4, VRAM_RATE = 250;
+        function calcPrice(cpu, vram) { return Math.round(cpu * CPU_RATE + vram * VRAM_RATE); }
+
+        function updatePrice() {
+            const cpu  = parseInt(document.getElementById('cp-cpu').value  || '0', 10);
+            const vram = parseFloat(document.getElementById('cp-vram').value || '0');
+            const p    = calcPrice(cpu, vram);
+            const el   = document.getElementById('cp-price');
+            el.innerText    = 'Rp ' + p.toLocaleString('id-ID') + '/jam';
+            el.dataset.value = p;
+        }
+
+        // --- Preset buttons ---
+        document.querySelectorAll('.cp-preset').forEach(b => {
+            b.addEventListener('mouseenter', () => { b.style.background = 'var(--cp-soft)'; b.style.borderColor = 'var(--cp-primary-start)'; });
+            b.addEventListener('mouseleave', () => { b.style.background = '#fff'; b.style.borderColor = 'var(--cp-soft-border)'; });
+            b.addEventListener('click', () => {
+                document.getElementById('cp-vram').value    = b.dataset.vram;
+                document.getElementById('cp-cpu').value     = b.dataset.cpu;
+                document.getElementById('cp-runtime').value = b.dataset.runtime;
+                updatePrice();
+            });
+        });
+
+        document.getElementById('cp-vram').addEventListener('change', updatePrice);
+        document.getElementById('cp-cpu').addEventListener('change', updatePrice);
+        document.getElementById('cp-runtime').addEventListener('change', updatePrice);
+
+        document.getElementById('cp-create-btn').addEventListener('click', async () => {
+            const runtime    = document.getElementById('cp-runtime').value;
+            const vram       = parseFloat(document.getElementById('cp-vram').value);
+            const cpu        = parseInt(document.getElementById('cp-cpu').value, 10);
+            const price      = parseFloat(document.getElementById('cp-price').dataset.value || 0);
+            const ssh        = document.getElementById('cp-ssh').checked;
+            const persistent = document.getElementById('cp-persistent').checked;
+            await API.create(runtime, { runtime, vram, cpu, price, ssh, persistent });
+            await refresh();
+        });
+
+        updatePrice();
+        refresh();
+        setInterval(refresh, 5000);
+    })();
     </script>
 
 @endcomponent

@@ -19,7 +19,13 @@ class ComputeController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $items = ComputeInstance::where('user_id', $user->id)->orderBy('created_at','desc')->get();
+        // support ?archived=1 to list soft-deleted instances
+        if ($request->query('archived') == '1') {
+            $items = ComputeInstance::onlyTrashed()->where('user_id', $user->id)->orderBy('created_at','desc')->get();
+        } else {
+            $items = ComputeInstance::where('user_id', $user->id)->orderBy('created_at','desc')->get();
+        }
+
         return response()->json($items);
     }
 
@@ -60,13 +66,37 @@ class ComputeController extends Controller
 
         // handle archive (soft-delete) separately
         if ($action === 'archive') {
-            // only allow archiving terminated instances
             if ($instance->status !== 'TERMINATED') {
                 return response()->json(['deleted' => false, 'error' => 'instance must be TERMINATED before archiving'], 422);
             }
 
             $instance->delete();
             return response()->json(['deleted' => true], 200);
+        }
+
+        // restore a trashed instance
+        if ($action === 'restore') {
+            // allow restore only for trashed instances
+            $trashed = ComputeInstance::onlyTrashed()->where('id', $id)->where('user_id', $user->id)->first();
+            if (! $trashed) {
+                return response()->json(['restored' => false, 'error' => 'not found or not trashed'], 404);
+            }
+            $trashed->restore();
+            return response()->json(['restored' => true], 200);
+        }
+
+        // permanent delete (purge)
+        if ($action === 'purge') {
+            $trashed = ComputeInstance::onlyTrashed()->where('id', $id)->where('user_id', $user->id)->first();
+            if (! $trashed) {
+                return response()->json(['deleted' => false, 'error' => 'not found or not trashed'], 404);
+            }
+            try {
+                $trashed->forceDelete();
+                return response()->json(['deleted' => true], 200);
+            } catch (\Exception $e) {
+                return response()->json(['deleted' => false, 'error' => $e->getMessage()], 500);
+            }
         }
 
         $result = $this->service->changeStatus($instance, $action);

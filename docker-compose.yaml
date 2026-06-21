@@ -51,7 +51,7 @@ services:
     image: jupyter/minimal-notebook:latest
     restart: unless-stopped
     ports:
-      - "28170:8888" # Map host 28170 -> container 8888
+      - "28171:8888" # Map host 28171 -> container 8888
     environment:
       JUPYTER_TOKEN: d3816299e87b6aba229af302
     volumes:
@@ -61,7 +61,7 @@ services:
     image: codercom/code-server:latest
     restart: unless-stopped
     ports:
-      - "29669:8080" # Map host 29669 -> container 8080
+      - "29670:8080" # Map host 29670 -> container 8080
     environment:
       PASSWORD: 3a44037ee2b09ec3
     volumes:
