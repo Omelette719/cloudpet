@@ -1,57 +1,24 @@
 version: "3.8"
 
 services:
-  minio:
-    image: minio/minio:latest
-    ports:
-      - "9000:9000" # Port API
-      - "8900:8900" # Port Web UI / Console
-    environment:
-      MINIO_ROOT_USER: cloudpet_user
-      MINIO_ROOT_PASSWORD: cloudpet_password
-    command: server /data --console-address ":8900"
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Service untuk membuat bucket otomatis
-  minio-setup:
-    image: minio/mc:latest
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      echo 'Setting up MinIO...';
-      /usr/bin/mc --version;
-      /usr/bin/mc alias set myminio http://minio:9000 cloudpet_user cloudpet_password --api S3v4;
-      /usr/bin/mc mb myminio/cloudpet-bucket --ignore-existing;
-      /usr/bin/mc anonymous set public myminio/cloudpet-bucket;
-      echo 'MinIO setup completed successfully!';
-      "
-
   ministack:
     image: ministackorg/ministack:latest
-    container_name: ministack
+    container_name: ministack_iaas
     restart: unless-stopped
     ports:
-      - "4566:4566"   # MiniStack API (default)
-      - "15432:15432" # RDS Postgres (optional)
-      - "16379:16379" # ElastiCache Redis (optional)
+      - "4566:4566"
+      - "15432:15432"
+      - "16379:16379"
     environment:
       - MINISTACK_LOG_LEVEL=info
     volumes:
-      - ministack-data:/var/lib/ministack
+      - ./ministack_data:/tmp/ministack
 
   jupyter:
     image: jupyter/minimal-notebook:latest
     restart: unless-stopped
     ports:
-      - "28171:8888" # Map host 28171 -> container 8888
+      - "28171:8888"
     environment:
       JUPYTER_TOKEN: d3816299e87b6aba229af302
     volumes:
@@ -61,14 +28,8 @@ services:
     image: codercom/code-server:latest
     restart: unless-stopped
     ports:
-      - "29670:8080" # Map host 29670 -> container 8080
+      - "29670:8080"
     environment:
       PASSWORD: 3a44037ee2b09ec3
     volumes:
       - ./code:/home/coder/project
-
-volumes:
-  minio_data:
-    driver: local
-  ministack-data:
-    driver: local

@@ -4,6 +4,7 @@ use App\Livewire\Auth\Login;
 use App\Livewire\Auth\Register;
 use App\Livewire\Dashboard\AdminDashboard;
 use App\Livewire\Dashboard\UserDashboard;
+use App\Livewire\Bucket\BucketManager;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -52,6 +53,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/app/dashboard', UserDashboard::class)
         ->middleware('auth')
         ->name('dashboard');
+
+    Route::get('/bucket/{id}', BucketManager::class)
+        ->middleware(['auth', 'role:user'])
+        ->name('bucket.manager');
 });
 
 // Public home route (tests expect a public home page)
