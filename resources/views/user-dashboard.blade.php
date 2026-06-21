@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/bucket
 <div>
     {{-- Welcome banner --}}
     <div class="cp-banner">

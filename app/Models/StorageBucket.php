@@ -16,6 +16,7 @@ class StorageBucket extends Model
         'id',
         'user_id',
         'bucket_name',
+        // 'visibility',  <-- HAPUS BARIS INI
         'access_key',
         'secret_key',
     ];

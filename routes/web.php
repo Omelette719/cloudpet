@@ -7,6 +7,7 @@ use App\Livewire\Dashboard\UserDashboard;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Cloud\ComputeController;
+use App\Livewire\Bucket\BucketManager;
 
 Route::get('/', fn() => redirect()->route('login'));
 
@@ -94,6 +95,20 @@ Route::middleware('auth')->group(function () {
     Route::get('/cloud/storage', function () {
         return view('cloud.storage');
     })->middleware(['auth', 'role:user'])->name('cloud.storage');
+
+    Route::get('/cloud/buckets', function () {
+        $buckets = \App\Models\StorageBucket::where(
+            'user_id',
+            Auth::id()
+        )->latest()->get();
+
+        return view('cloud.buckets', compact('buckets'));
+    })->middleware('role:user')
+        ->name('cloud.buckets');
+
+    Route::get('/bucket/{id}', BucketManager::class)
+        ->middleware('role:user')
+        ->name('bucket.manager');
 });
 
 // Public home route

@@ -30,20 +30,23 @@
                 </div>
             </a>
 
-            {{-- Storage / Bucket (coming soon) --}}
-            <div style="display:flex; flex-direction:column; gap:0.75rem; padding:1.25rem; border-radius:1rem; background:#fafcf7; border:1px solid var(--cp-soft-border); opacity:0.72; cursor:not-allowed;">
+            {{-- Storage / Bucket (Aktif) --}}
+            <a href="{{ route('cloud.buckets') }}"
+               style="display:flex; flex-direction:column; gap:0.75rem; padding:1.25rem; border-radius:1rem; background:#fff; border:1px solid var(--cp-soft-border); text-decoration:none; transition:box-shadow 0.18s, transform 0.18s; box-shadow:var(--cp-shadow);"
+               onmouseenter="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 20px 48px rgba(34,48,31,0.18)'"
+               onmouseleave="this.style.transform='translateY(0)'; this.style.boxShadow='var(--cp-shadow)'">
                 <div style="display:flex; align-items:center; justify-content:space-between;">
                     <div style="width:46px; height:46px; border-radius:0.85rem; background:var(--cp-soft); display:flex; align-items:center; justify-content:center; font-size:1.5rem;">💾</div>
-                    <span class="cp-chip">Coming Soon</span>
+                    <span class="cp-badge">Aktif</span>
                 </div>
                 <div>
                     <div style="font-weight:800; font-size:1rem; color:var(--cp-ink); margin-bottom:4px;">Storage (Bucket)</div>
                     <div style="font-size:0.83rem; color:var(--cp-ink-muted); line-height:1.5;">Penyimpanan objek S3-compatible untuk data Anda.</div>
                 </div>
-                <div style="margin-top:auto; padding-top:0.75rem; border-top:1px solid var(--cp-soft-border); font-size:0.78rem; font-weight:700; color:var(--cp-ink-muted);">
-                    Segera hadir
+                <div style="margin-top:auto; padding-top:0.75rem; border-top:1px solid var(--cp-soft-border); font-size:0.78rem; font-weight:700; color:var(--cp-primary-strong);">
+                    Buka layanan →
                 </div>
-            </div>
+            </a>
 
             {{-- Managed Database (coming soon) --}}
             <div style="display:flex; flex-direction:column; gap:0.75rem; padding:1.25rem; border-radius:1rem; background:#fafcf7; border:1px solid var(--cp-soft-border); opacity:0.72; cursor:not-allowed;">
