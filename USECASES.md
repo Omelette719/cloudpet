@@ -29,7 +29,7 @@ Terdapat 19 fungsi utama di dalam sistem yang dikelompokkan menjadi 5 modul:
 - UC-07: Mengubah status Instance (Start, Stop, Restart)
 - UC-08: Menghapus Compute Instance (Terminasi)
 
-**Storage (via MinIO)**
+**Storage (via Ministack)**
 
 - UC-09: Melihat daftar Storage Bucket
 - UC-10: Membuat Storage Bucket baru
@@ -59,12 +59,12 @@ Terdapat 19 fungsi utama di dalam sistem yang dikelompokkan menjadi 5 modul:
 - **Preconditions**: Pengguna sudah _login_ dan memiliki saldo atau metode pembayaran yang valid.
 - **Trigger**: Pengguna menekan tombol "Create Instance", memilih spesifikasi, dan melakukan konfirmasi.
 - **Main Flow**:
-  1. Antarmuka UI mengirimkan data formulir ke _Backend_.
-  2. _Backend_ memvalidasi ketersediaan dan spesifikasi dengan tabel `plans`.
-  3. _ComputeService_ membuat rekaman berstatus `provisioning` di tabel `compute_instances`.
-  4. _Job Queue_ mentransmisikan permintaan _provisioning_ melalui _Ministack Adapter_ ke server Ministack.
-  5. Ministack mengalokasikan sumber daya komputasi dan mengembalikan data metadata (seperti alamat IP).
-  6. _Backend_ memperbarui tabel `compute_instances`, mengubah status menjadi `running`, dan menyimpan metadata.
+    1. Antarmuka UI mengirimkan data formulir ke _Backend_.
+    2. _Backend_ memvalidasi ketersediaan dan spesifikasi dengan tabel `plans`.
+    3. _ComputeService_ membuat rekaman berstatus `provisioning` di tabel `compute_instances`.
+    4. _Job Queue_ mentransmisikan permintaan _provisioning_ melalui _Ministack Adapter_ ke server Ministack.
+    5. Ministack mengalokasikan sumber daya komputasi dan mengembalikan data metadata (seperti alamat IP).
+    6. _Backend_ memperbarui tabel `compute_instances`, mengubah status menjadi `running`, dan menyimpan metadata.
 - **Alternative Flow**: Jika kapasitas di zona Ministack sedang penuh, sistem mengantre ulang tugas (_re-queue_) dan memberitahu pengguna tentang estimasi waktu tunggu.
 - **Error Condition**: Jika Ministack gagal merespons atau mengembalikan status _error_, _Backend_ mengubah status instance menjadi `failed` dan mencatat detail galat di tabel `system_error_logs`.
 - **Postcondition**: Instance baru muncul di dasbor pengguna dalam kondisi aktif beserta alamat IP publik/privatnya.

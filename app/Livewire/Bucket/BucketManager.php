@@ -241,46 +241,6 @@ class BucketManager extends Component
         $this->selectedFileDetails = null;
     }
 
-    // --- FITUR VISIBILITAS (BUCKET POLICY) ---
-    public function toggleVisibility()
-    {
-        $newVisibility = $this->bucket->visibility === 'public' ? 'private' : 'public';
-        $s3 = $this->getS3Client();
-
-        try {
-            if ($newVisibility === 'public') {
-                // Buat policy Read-Only untuk publik
-                $policy = json_encode([
-                    'Version' => '2012-10-17',
-                    'Statement' => [
-                        [
-                            'Sid' => 'PublicReadGetObject',
-                            'Effect' => 'Allow',
-                            'Principal' => '*',
-                            'Action' => ['s3:GetObject'],
-                            'Resource' => ["arn:aws:s3:::{$this->bucket->bucket_name}/*"]
-                        ]
-                    ]
-                ]);
-                $s3->putBucketPolicy([
-                    'Bucket' => $this->bucket->bucket_name,
-                    'Policy' => $policy
-                ]);
-            } else {
-                // Hapus policy jika private
-                $s3->deleteBucketPolicy([
-                    'Bucket' => $this->bucket->bucket_name
-                ]);
-            }
-
-            // Update Database
-            $this->bucket->update(['visibility' => $newVisibility]);
-            session()->flash('message', "👁️ Visibilitas S3 Bucket berhasil diubah menjadi " . strtoupper($newVisibility));
-            
-        } catch (\Exception $e) {
-            session()->flash('error', 'Gagal merubah visibilitas (S3 Policy): ' . $e->getMessage());
-        }
-    }
 
     public function render()
     {

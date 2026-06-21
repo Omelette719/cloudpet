@@ -5,27 +5,26 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class StorageBucket extends Model
+class BlockVolume extends Model
 {
     use HasFactory;
 
-    protected $keyType = 'string';
-    public $incrementing = false;
-
     protected $fillable = [
-        'id',
         'user_id',
-        'bucket_name',
-        'access_key',
-        'secret_key',
-    ];
-
-    protected $hidden = [
-        'secret_key',
+        'compute_instance_id',
+        'volume_name',
+        'size_gb',
+        'status',
+        'provider_volume_id',
     ];
 
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function computeInstance()
+    {
+        return $this->belongsTo(ComputeInstance::class);
     }
 }

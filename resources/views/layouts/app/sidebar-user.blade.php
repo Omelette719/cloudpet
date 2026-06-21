@@ -27,6 +27,15 @@
             <span>Layanan Cloud</span>
             <span class="cp-chip">Beta</span>
         </a>
+
+        {{-- MENU BARU: Block Storage --}}
+        <a href="{{ route('cloud.volumes') }}" wire:navigate
+            class="cp-side-link {{ request()->routeIs('cloud.volumes') ? 'active' : '' }}">
+            <span>💽</span>
+            <span>Block Storage</span>
+            <span class="cp-chip">Beta</span>
+        </a>
+
         <a href="{{ route('cloud.storage') }}" wire:navigate
             class="cp-side-link {{ request()->routeIs('cloud.storage') ? 'active' : '' }}">
             <span>💾</span>

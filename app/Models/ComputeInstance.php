@@ -45,4 +45,10 @@ class ComputeInstance extends Model
     {
         return $this->hasMany(ResourceStateLog::class, 'resource_id')->where('resource_type', 'compute_instance');
     }
+
+    public function blockVolumes()
+    {
+        // Satu instans bisa ditempelkan lebih dari satu block volume
+        return $this->hasMany(BlockVolume::class);
+    }
 }

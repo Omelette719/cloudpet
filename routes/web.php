@@ -79,7 +79,9 @@ Route::middleware('auth')->group(function () {
             ->name('cloud.api.usage.export');
     });
 
-
+    Route::get('/cloud/volumes', function () {
+        return view('cloud.volumes'); // Kita akan membuat file ini di langkah 3
+    })->name('cloud.volumes');
     // Tambahkan ke dalam Route::middleware('auth')->group() di routes/web.php
 
     // ── Billing API ────────────────────────────────────────────────────────────────

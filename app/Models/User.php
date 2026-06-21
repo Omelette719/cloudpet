@@ -74,6 +74,7 @@ class User extends Authenticatable
     public function computeInstances()   { return $this->hasMany(ComputeInstance::class); }
     public function storageBuckets()     { return $this->hasMany(StorageBucket::class); }
     public function managedDatabases()   { return $this->hasMany(ManagedDatabase::class); }
+    public function blockVolumes()       { return $this->hasMany(BlockVolume::class); }
     public function activityLogs()       { return $this->hasMany(ActivityLog::class); }
     public function billingTransactions(){ return $this->hasMany(BillingTransaction::class); }
 }
