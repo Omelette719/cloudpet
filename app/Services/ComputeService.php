@@ -33,7 +33,7 @@ class ComputeService
             $pricePerHour = (float) $requested['price'];
         } else {
             $cpu = $requested['cpu'] ?? ($meta['spec']['cpu'] ?? 0);
-            $vram = $requested['vram_gb'] ?? ($meta['spec']['memory'] ? ($meta['spec']['memory']/1024) : 0);
+            $vram = $requested['vram_gb'] ?? ($meta['spec']['memory'] ? ($meta['spec']['memory'] / 1024) : 0);
             $pricePerHour = round(($cpu * $CPU_RATE) + ($vram * $VRAM_RATE));
         }
 
@@ -100,7 +100,7 @@ class ComputeService
                 $plans = [
                     'micro' => ['cpu' => 10,  'memory' => 128,  'image' => 'alpine:latest'],
                     'small' => ['cpu' => 50,  'memory' => 256,  'image' => 'alpine:latest'],
-                    'medium'=> ['cpu' => 100, 'memory' => 512,  'image' => 'alpine:latest'],
+                    'medium' => ['cpu' => 100, 'memory' => 512,  'image' => 'alpine:latest'],
                     'large' => ['cpu' => 200, 'memory' => 1024, 'image' => 'alpine:latest'],
                     // Jupyter runtime (interactive notebook)
                     'jupyter' => ['cpu' => 100, 'memory' => 512, 'image' => 'jupyter/minimal-notebook'],
@@ -137,9 +137,21 @@ class ComputeService
 
                 // If SSH requested, use an SSH-capable image and reserve a host port
                 if ($ssh) {
-                    $spec['image'] = 'rastasheep/ubuntu-sshd:latest';
-                    // choose a random host port in a high ephemeral range
-                    $spec['hostPort'] = rand(22000, 22999);
+                    // Kalau runtime adalah jupyter/code-server, jangan ganti image-nya.
+                    // SSH ditangani dengan menambahkan port mapping terpisah saja.
+                    $sshHostPort = rand(22000, 22999);
+                    $spec['ssh_host_port'] = $sshHostPort;
+
+                    // Hanya ganti image ke ubuntu-sshd kalau runtime-nya VM biasa
+                    $isInteractive = in_array($chosenRuntime ?? $plan, ['jupyter', 'code-server']);
+                    if (!$isInteractive) {
+                        $spec['image'] = 'rastasheep/ubuntu-sshd:latest';
+                        $spec['hostPort'] = $sshHostPort;
+                    }
+                    // untuk jupyter/code-server, SSH port disimpan di metadata saja
+                    $instance->metadata = array_merge($instance->metadata ?? [], [
+                        'ssh_host_port' => $sshHostPort,
+                    ]);
                 }
 
                 // If Jupyter runtime, expose notebook port and set token
@@ -191,7 +203,8 @@ class ComputeService
                                 $instance->metadata = array_merge($instance->metadata ?? [], ['volumePath' => $hostPath]);
                             }
 
-                            $cmd = sprintf('docker run -d --rm --name %s -p %d:%d %s %s %s',
+                            $cmd = sprintf(
+                                'docker run -d --rm --name %s -p %d:%d %s %s %s',
                                 escapeshellarg($containerName),
                                 $hostPort,
                                 $containerPort,
@@ -310,24 +323,24 @@ class ComputeService
                     ]);
 
                     $tasks = $run->get('tasks') ?? [];
-                        if (count($tasks) > 0) {
-                            $task = $tasks[0];
-                            $instance->status = 'RUNNING';
-                            $instance->metadata = array_merge($instance->metadata ?? [], [
-                                'taskArn' => $task['taskArn'] ?? null,
-                                'taskDefinition' => $taskDefArn,
-                                'plan' => $plan,
-                                'spec' => $spec,
-                                'raw' => $task,
-                            ]);
-                            $instance->save();
+                    if (count($tasks) > 0) {
+                        $task = $tasks[0];
+                        $instance->status = 'RUNNING';
+                        $instance->metadata = array_merge($instance->metadata ?? [], [
+                            'taskArn' => $task['taskArn'] ?? null,
+                            'taskDefinition' => $taskDefArn,
+                            'plan' => $plan,
+                            'spec' => $spec,
+                            'raw' => $task,
+                        ]);
+                        $instance->save();
                     } else {
-                            $instance->status = 'FAILED';
+                        $instance->status = 'FAILED';
                         $instance->metadata = array_merge($instance->metadata ?? [], ['error' => $run->toArray()]);
                         $instance->save();
                     }
                 } else {
-                        $instance->status = 'FAILED';
+                    $instance->status = 'FAILED';
                     $instance->metadata = array_merge($instance->metadata ?? [], ['error' => 'no taskDefinitionArn']);
                     $instance->save();
                 }
