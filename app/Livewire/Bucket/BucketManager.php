@@ -20,9 +20,8 @@ class BucketManager extends Component
     public string $currentPrefix = ''; 
     public array $objects = []; 
     public array $folders = []; 
-    
-    // ✅ Tambahkan properti khusus untuk nama folder baru
     public string $newFolderName = ''; 
+    public ?array $selectedFileDetails = null;
 
     public function mount(string $id)
     {
@@ -213,6 +212,73 @@ class BucketManager extends Component
             session()->flash('message', '🗑️ Folder dan seluruh isinya berhasil dihapus.');
         } catch (\Exception $e) {
             session()->flash('error', 'Gagal menghapus folder: ' . $e->getMessage());
+        }
+    }
+
+    // --- FITUR METADATA ---
+    public function showFileDetails(string $key)
+    {
+        try {
+            $result = $this->getS3Client()->headObject([
+                'Bucket' => $this->bucket->bucket_name,
+                'Key'    => $key
+            ]);
+            
+            $this->selectedFileDetails = [
+                'Key'           => $key,
+                'ContentType'   => $result->get('ContentType'),
+                'ContentLength' => $result->get('ContentLength'),
+                'LastModified'  => $result->get('LastModified')->format('Y-m-d H:i:s'),
+                'Metadata'      => $result->get('Metadata') ?: [], // Custom Metadata dari user
+            ];
+        } catch (\Exception $e) {
+            session()->flash('error', 'Gagal memuat detail metadata file: ' . $e->getMessage());
+        }
+    }
+
+    public function closeFileDetails()
+    {
+        $this->selectedFileDetails = null;
+    }
+
+    // --- FITUR VISIBILITAS (BUCKET POLICY) ---
+    public function toggleVisibility()
+    {
+        $newVisibility = $this->bucket->visibility === 'public' ? 'private' : 'public';
+        $s3 = $this->getS3Client();
+
+        try {
+            if ($newVisibility === 'public') {
+                // Buat policy Read-Only untuk publik
+                $policy = json_encode([
+                    'Version' => '2012-10-17',
+                    'Statement' => [
+                        [
+                            'Sid' => 'PublicReadGetObject',
+                            'Effect' => 'Allow',
+                            'Principal' => '*',
+                            'Action' => ['s3:GetObject'],
+                            'Resource' => ["arn:aws:s3:::{$this->bucket->bucket_name}/*"]
+                        ]
+                    ]
+                ]);
+                $s3->putBucketPolicy([
+                    'Bucket' => $this->bucket->bucket_name,
+                    'Policy' => $policy
+                ]);
+            } else {
+                // Hapus policy jika private
+                $s3->deleteBucketPolicy([
+                    'Bucket' => $this->bucket->bucket_name
+                ]);
+            }
+
+            // Update Database
+            $this->bucket->update(['visibility' => $newVisibility]);
+            session()->flash('message', "👁️ Visibilitas S3 Bucket berhasil diubah menjadi " . strtoupper($newVisibility));
+            
+        } catch (\Exception $e) {
+            session()->flash('error', 'Gagal merubah visibilitas (S3 Policy): ' . $e->getMessage());
         }
     }
 

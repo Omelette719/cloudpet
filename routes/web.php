@@ -41,6 +41,16 @@ Route::middleware('auth')->group(function () {
         return view('cloud.computing');
     })->middleware('role:user')->name('cloud.computing');
 
+    Route::get('/billing', \App\Livewire\Billing\BillingHistory::class)
+        ->middleware('role:user')
+        ->name('user.billing');
+
+    // PERBAIKAN DI SINI: Menggunakan Auth::user()->id (tanpa tanda kurung di id)
+    Route::get('/cloud/storage', function () {
+        $buckets = \App\Models\StorageBucket::where('user_id', Auth::user()->id)->latest()->get();
+        return view('cloud.storage', compact('buckets'));
+    })->middleware('role:user')->name('cloud.storage');
+
     // API endpoints for compute (web routes with auth & csrf)
     Route::get('/cloud/api/instances', [\App\Http\Controllers\Cloud\ComputeController::class, 'index'])->name('cloud.api.instances');
     Route::post('/cloud/api/instances', [\App\Http\Controllers\Cloud\ComputeController::class, 'store'])->name('cloud.api.instances.store');

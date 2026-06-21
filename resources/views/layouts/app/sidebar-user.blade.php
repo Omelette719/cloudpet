@@ -29,11 +29,6 @@
             <span class="cp-chip">Beta</span>
         </a>
         <a class="cp-side-link soon">
-            <span>💾</span>
-            <span>Storage</span>
-            <span class="cp-chip">Soon</span>
-        </a>
-        <a class="cp-side-link soon">
             <span>🔑</span>
             <span>Akses Kunci</span>
             <span class="cp-chip">Soon</span>
