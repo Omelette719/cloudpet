@@ -90,16 +90,50 @@
                 <h3 class="cp-section-title" style="margin:0;" id="db-manager-title">Kelola Data</h3>
                 <button onclick="closeManager()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--cp-ink-muted);">✕</button>
             </div>
-            <div style="display:grid;grid-template-columns:180px 1fr;gap:1rem;min-height:300px;">
-                {{-- Table list --}}
+            <div style="display:grid;grid-template-columns:200px 1fr;gap:1rem;min-height:300px;">
+                {{-- Sidebar: table list + create table --}}
                 <div style="border-right:1px solid var(--cp-soft-border);padding-right:1rem;">
-                    <div style="font-size:0.72rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Tabel</div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                        <div style="font-size:0.72rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.05em;">Tabel</div>
+                        <button onclick="showCreateTableForm()" style="padding:2px 8px;border-radius:0.5rem;border:1px solid #c6e0a8;background:#eaf4dd;color:#3b5136;font-size:0.7rem;font-weight:700;cursor:pointer;">+ Buat</button>
+                    </div>
                     <div id="db-table-list" style="display:grid;gap:4px;"></div>
                 </div>
-                {{-- Table content --}}
+                {{-- Main: table content / create table form --}}
                 <div>
-                    <div id="db-table-content" style="overflow-x:auto;max-height:400px;overflow-y:auto;">
-                        <div style="text-align:center;color:var(--cp-ink-muted);padding:3rem;font-size:0.85rem;">Pilih tabel di sebelah kiri.</div>
+                    {{-- Create table form (hidden) --}}
+                    <div id="db-create-table-form" style="display:none;">
+                        <div style="font-size:0.82rem;font-weight:800;color:var(--cp-ink);margin-bottom:10px;">Buat Tabel Baru</div>
+                        <div style="margin-bottom:10px;">
+                            <label style="font-size:0.72rem;font-weight:700;color:var(--cp-ink-muted);display:block;margin-bottom:4px;">Nama Tabel</label>
+                            <input id="ct-name" type="text" placeholder="contoh: products" style="width:100%;padding:7px 10px;border:1px solid var(--cp-soft-border);border-radius:0.5rem;font-size:0.82rem;color:var(--cp-ink);">
+                        </div>
+                        <div style="font-size:0.72rem;font-weight:700;color:var(--cp-ink-muted);margin-bottom:6px;">Kolom</div>
+                        <div style="margin-bottom:6px;display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--cp-soft);border-radius:0.5rem;">
+                            <input type="checkbox" id="ct-auto-id" checked>
+                            <label for="ct-auto-id" style="font-size:0.78rem;color:var(--cp-ink);font-weight:600;cursor:pointer;">Tambahkan kolom "id" (auto-increment, primary key)</label>
+                        </div>
+                        <div id="ct-columns" style="display:grid;gap:6px;margin-bottom:10px;"></div>
+                        <button onclick="addColumnRow()" style="padding:4px 12px;border-radius:0.5rem;border:1px dashed var(--cp-soft-border);background:#fff;color:var(--cp-ink-muted);font-size:0.75rem;font-weight:700;cursor:pointer;margin-bottom:12px;">+ Tambah Kolom</button>
+                        <div style="display:flex;gap:8px;">
+                            <button onclick="submitCreateTable()" class="cp-btn" style="width:auto;padding:8px 18px;font-size:0.82rem;border-radius:0.7rem;">Buat Tabel</button>
+                            <button onclick="cancelCreateTable()" style="padding:8px 18px;border-radius:0.7rem;border:1px solid var(--cp-soft-border);background:#fff;color:var(--cp-ink);font-size:0.82rem;font-weight:700;cursor:pointer;">Batal</button>
+                        </div>
+                    </div>
+
+                    {{-- Table content area --}}
+                    <div id="db-table-content" style="overflow-x:auto;">
+                        <div style="text-align:center;color:var(--cp-ink-muted);padding:3rem;font-size:0.85rem;">Pilih tabel di sebelah kiri, atau buat tabel baru.</div>
+                    </div>
+
+                    {{-- Add row form (hidden) --}}
+                    <div id="db-add-row-form" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--cp-soft-border);">
+                        <div style="font-size:0.82rem;font-weight:800;color:var(--cp-ink);margin-bottom:8px;">Tambah Baris Baru</div>
+                        <div id="ar-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;"></div>
+                        <div style="display:flex;gap:8px;">
+                            <button onclick="submitInsertRow()" class="cp-btn" style="width:auto;padding:7px 16px;font-size:0.8rem;border-radius:0.65rem;">Simpan</button>
+                            <button onclick="document.getElementById('db-add-row-form').style.display='none'" style="padding:7px 16px;border-radius:0.65rem;border:1px solid var(--cp-soft-border);background:#fff;color:var(--cp-ink);font-size:0.8rem;font-weight:700;cursor:pointer;">Batal</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -164,9 +198,14 @@
         log:     (id) => fetch(`/cloud/api/databases/${id}/log`, { credentials:'same-origin' }).then(r => r.json()),
         conn:    (id) => fetch(`/cloud/api/databases/${id}/connection`, { credentials:'same-origin' }).then(r => r.json()),
         del:     (id) => fetch(`/cloud/api/databases/${id}`, { method:'DELETE', headers:{'X-CSRF-TOKEN':CSRF}, credentials:'same-origin' }).then(r => r.json()),
-        tables:  (id) => fetch(`/cloud/api/databases/${id}/tables`, { credentials:'same-origin' }).then(r => r.json()),
-        rows:    (id, t) => fetch(`/cloud/api/databases/${id}/tables/${t}`, { credentials:'same-origin' }).then(r => r.json()),
-        query:   (id, sql) => fetch(`/cloud/api/databases/${id}/query`, { method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':CSRF}, body:JSON.stringify({sql}), credentials:'same-origin' }).then(r => r.json()),
+        tables:    (id) => fetch(`/cloud/api/databases/${id}/tables`, { credentials:'same-origin' }).then(r => r.json()),
+        rows:      (id, t) => fetch(`/cloud/api/databases/${id}/tables/${t}`, { credentials:'same-origin' }).then(r => r.json()),
+        query:     (id, sql) => fetch(`/cloud/api/databases/${id}/query`, { method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':CSRF}, body:JSON.stringify({sql}), credentials:'same-origin' }).then(r => r.json()),
+        createTbl: (id, table_name, columns) => fetch(`/cloud/api/databases/${id}/tables/create`, { method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':CSRF}, body:JSON.stringify({table_name, columns}), credentials:'same-origin' }).then(r => r.json()),
+        dropTbl:   (id, t) => fetch(`/cloud/api/databases/${id}/tables/${t}`, { method:'DELETE', headers:{'X-CSRF-TOKEN':CSRF}, credentials:'same-origin' }).then(r => r.json()),
+        insertRow: (id, t, data) => fetch(`/cloud/api/databases/${id}/tables/${t}/rows`, { method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':CSRF}, body:JSON.stringify({data}), credentials:'same-origin' }).then(r => r.json()),
+        updateRow: (id, t, pk, data) => fetch(`/cloud/api/databases/${id}/tables/${t}/rows`, { method:'PUT', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':CSRF}, body:JSON.stringify({pk, data}), credentials:'same-origin' }).then(r => r.json()),
+        deleteRow: (id, t, pk) => fetch(`/cloud/api/databases/${id}/tables/${t}/rows`, { method:'DELETE', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':CSRF}, body:JSON.stringify({pk}), credentials:'same-origin' }).then(r => r.json()),
     };
 
     const ENGINE_ICONS = { 'postgres-15':'🐘','postgres-14':'🐘','mysql-8':'🐬','mysql-5.7':'🐬','mariadb-10':'🦭' };
@@ -176,12 +215,13 @@
         ERROR:'background:#fde8e8;color:#7a1111;',
     };
 
-    let dbPlans = [], engines = [], selectedEngine = null, selectedPlanId = null, managerDbId = null;
+    let dbPlans = [], engines = [], allowedDbPlans = [], selectedEngine = null, selectedPlanId = null, managerDbId = null;
 
     // ── Load plans + engines ──────────────────────────────────────────────
     API.plans().then(data => {
         dbPlans = data.plans || [];
         engines = data.engines ? Object.values(data.engines) : [];
+        allowedDbPlans = data.allowed_db_plans || ['db-micro'];
         renderEngineSelector();
         renderPlanSelector();
     });
@@ -215,8 +255,20 @@
                 <div style="font-size:0.62rem;color:var(--cp-ink-muted);margin-top:2px;">${p.vcpu}C · ${p.ram>=1024?p.ram/1024+'GB':p.ram+'MB'}</div>
             </button>
         `).join('');
+        // Lock plans not allowed by membership
+        wrap.querySelectorAll('.dbplan-btn').forEach(btn => {
+            const planName = btn.querySelector('div')?.innerText?.trim()?.toLowerCase();
+            const fullName = 'db-' + planName;
+            if (!allowedDbPlans.includes(fullName)) {
+                btn.disabled = true;
+                btn.style.opacity = '0.45';
+                btn.style.cursor = 'not-allowed';
+                btn.insertAdjacentHTML('beforeend', '<div style="font-size:0.58rem;color:#9b2c2c;margin-top:3px;font-weight:700;">🔒 Upgrade</div>');
+            }
+        });
         wrap.querySelectorAll('.dbplan-btn').forEach(btn => {
             btn.addEventListener('click', () => {
+                if (btn.disabled) return;
                 selectedPlanId = btn.dataset.planId;
                 wrap.querySelectorAll('.dbplan-btn').forEach(b => { b.style.background='#fff'; b.style.borderColor='var(--cp-soft-border)'; b.querySelectorAll('div').forEach(d=>d.style.color=''); });
                 btn.style.background='linear-gradient(135deg,var(--cp-primary-start),var(--cp-primary-end))'; btn.style.borderColor='var(--cp-primary-end)';
@@ -361,48 +413,215 @@
     };
 
     // ── Data manager ──────────────────────────────────────────────────────
+    let currentTable = null, currentColumns = [];
+    const COL_TYPES = ['VARCHAR(255)','TEXT','INT','BIGINT','BOOLEAN','DATE','TIMESTAMP','DECIMAL(10,2)','JSON'];
+
     window.openManager = async (id, name) => {
-        managerDbId = id;
+        managerDbId = id; currentTable = null;
         document.getElementById('db-manager-title').innerText = 'Kelola Data — ' + name;
         document.getElementById('db-manager-section').style.display = 'block';
-        document.getElementById('db-table-content').innerHTML = '<div style="text-align:center;color:var(--cp-ink-muted);padding:2rem;">Memuat tabel...</div>';
+        document.getElementById('db-create-table-form').style.display = 'none';
+        document.getElementById('db-add-row-form').style.display = 'none';
+        document.getElementById('db-table-content').innerHTML = '<div style="text-align:center;color:var(--cp-ink-muted);padding:3rem;font-size:0.85rem;">Pilih tabel di sebelah kiri, atau buat tabel baru.</div>';
         document.getElementById('db-manager-section').scrollIntoView({behavior:'smooth'});
+        await refreshTableList();
+    };
 
-        const data = await API.tables(id);
+    async function refreshTableList() {
+        const data = await API.tables(managerDbId);
         const list = document.getElementById('db-table-list');
         if (data.error) { list.innerHTML = `<div style="color:#9b2c2c;font-size:0.78rem;">${data.error}</div>`; return; }
         if (!data.tables || !data.tables.length) { list.innerHTML = '<div style="color:var(--cp-ink-muted);font-size:0.78rem;">Belum ada tabel.</div>'; return; }
         list.innerHTML = data.tables.map(t => `
-            <button onclick="loadTable('${t}')" style="padding:6px 10px;border-radius:0.5rem;border:1px solid var(--cp-soft-border);background:#fff;text-align:left;font-size:0.78rem;font-weight:700;color:var(--cp-ink);cursor:pointer;transition:all 0.1s;"
-                onmouseenter="this.style.background='var(--cp-soft)'" onmouseleave="this.style.background='#fff'">${t}</button>
+            <div style="display:flex;gap:4px;align-items:center;">
+                <button onclick="loadTable('${t}')" style="flex:1;padding:6px 8px;border-radius:0.5rem;border:1px solid ${currentTable===t?'var(--cp-primary-start)':'var(--cp-soft-border)'};background:${currentTable===t?'var(--cp-soft)':'#fff'};text-align:left;font-size:0.78rem;font-weight:700;color:var(--cp-ink);cursor:pointer;">${t}</button>
+                <button onclick="confirmAction('Hapus tabel ${t}?','Semua data di tabel ini akan hilang.',()=>dropTable('${t}'))" style="padding:3px 6px;border-radius:0.4rem;border:1px solid #f5c6c6;background:#fde8e8;color:#9b2c2c;font-size:0.65rem;cursor:pointer;font-weight:700;" title="Hapus tabel">✕</button>
+            </div>
         `).join('');
-        document.getElementById('db-table-content').innerHTML = '<div style="text-align:center;color:var(--cp-ink-muted);padding:3rem;font-size:0.85rem;">Pilih tabel di sebelah kiri.</div>';
-    };
+    }
 
     window.closeManager = () => {
         document.getElementById('db-manager-section').style.display = 'none';
-        managerDbId = null;
+        managerDbId = null; currentTable = null;
     };
 
+    // ── Create table ──────────────────────────────────────────────────────
+    window.showCreateTableForm = () => {
+        document.getElementById('db-create-table-form').style.display = 'block';
+        document.getElementById('db-table-content').style.display = 'none';
+        document.getElementById('db-add-row-form').style.display = 'none';
+        document.getElementById('ct-name').value = '';
+        document.getElementById('ct-columns').innerHTML = '';
+        addColumnRow(); addColumnRow();
+    };
+
+    window.cancelCreateTable = () => {
+        document.getElementById('db-create-table-form').style.display = 'none';
+        document.getElementById('db-table-content').style.display = 'block';
+    };
+
+    window.addColumnRow = () => {
+        const wrap = document.getElementById('ct-columns');
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:6px;align-items:center;';
+        row.innerHTML = `
+            <input type="text" placeholder="nama_kolom" style="flex:1;padding:6px 8px;border:1px solid var(--cp-soft-border);border-radius:0.4rem;font-size:0.78rem;color:var(--cp-ink);">
+            <select style="padding:6px;border:1px solid var(--cp-soft-border);border-radius:0.4rem;font-size:0.78rem;color:var(--cp-ink);">
+                ${COL_TYPES.map(t=>`<option value="${t}">${t}</option>`).join('')}
+            </select>
+            <label style="display:flex;align-items:center;gap:3px;font-size:0.7rem;color:var(--cp-ink-muted);white-space:nowrap;"><input type="checkbox"> NULL</label>
+            <button onclick="this.parentElement.remove()" style="padding:2px 6px;border:none;background:none;color:#9b2c2c;font-size:0.9rem;cursor:pointer;">✕</button>
+        `;
+        wrap.appendChild(row);
+    };
+
+    window.submitCreateTable = async () => {
+        const name = document.getElementById('ct-name').value.trim();
+        if (!name) { showToast('Nama tabel wajib diisi.'); return; }
+        const autoId = document.getElementById('ct-auto-id').checked;
+        const colRows = document.getElementById('ct-columns').children;
+        const columns = [];
+        if (autoId) columns.push({ name:'id', type:'INT', nullable:false, primary:true });
+        for (const row of colRows) {
+            const inputs = row.querySelectorAll('input[type="text"], select, input[type="checkbox"]');
+            const colName = inputs[0].value.trim();
+            if (!colName) continue;
+            columns.push({ name:colName, type:inputs[1].value, nullable:inputs[2].checked, primary:false });
+        }
+        if (!columns.length) { showToast('Tambahkan minimal 1 kolom.'); return; }
+        const res = await API.createTbl(managerDbId, name, columns);
+        if (res.error) { showToast(res.error); return; }
+        showToast('Tabel "' + name + '" berhasil dibuat!');
+        cancelCreateTable();
+        await refreshTableList();
+        loadTable(name);
+    };
+
+    window.dropTable = async (table) => {
+        const res = await API.dropTbl(managerDbId, table);
+        if (res.error) { showToast(res.error); return; }
+        showToast('Tabel "' + table + '" dihapus.');
+        if (currentTable === table) {
+            currentTable = null;
+            document.getElementById('db-table-content').innerHTML = '<div style="text-align:center;color:var(--cp-ink-muted);padding:3rem;font-size:0.85rem;">Pilih tabel di sebelah kiri.</div>';
+            document.getElementById('db-add-row-form').style.display = 'none';
+        }
+        await refreshTableList();
+    };
+
+    // ── Load table rows ───────────────────────────────────────────────────
     window.loadTable = async (table) => {
+        currentTable = table;
+        document.getElementById('db-create-table-form').style.display = 'none';
+        document.getElementById('db-table-content').style.display = 'block';
+        document.getElementById('db-add-row-form').style.display = 'none';
         const wrap = document.getElementById('db-table-content');
         wrap.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--cp-ink-muted);">Memuat...</div>';
+
         const data = await API.rows(managerDbId, table);
         if (data.error) { wrap.innerHTML = `<div style="color:#9b2c2c;padding:1rem;">${data.error}</div>`; return; }
+
+        currentColumns = data.columns || [];
+        await refreshTableList();
+
+        const toolbar = `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <div style="font-size:0.82rem;font-weight:800;color:var(--cp-ink);">${table} <span style="font-weight:600;color:var(--cp-ink-muted);font-size:0.72rem;">(${data.total} baris)</span></div>
+                <div style="display:flex;gap:6px;">
+                    <button onclick="showAddRowForm()" style="padding:4px 12px;border-radius:0.5rem;border:1px solid #c6e0a8;background:#eaf4dd;color:#3b5136;font-size:0.72rem;font-weight:700;cursor:pointer;">+ Tambah Baris</button>
+                    <button onclick="loadTable('${table}')" style="padding:4px 10px;border-radius:0.5rem;border:1px solid var(--cp-soft-border);background:#fff;color:var(--cp-ink-muted);font-size:0.72rem;font-weight:700;cursor:pointer;">Refresh</button>
+                </div>
+            </div>`;
+
         if (!data.rows || !data.rows.length) {
-            const cols = data.columns ? data.columns.map(c => c.column_name || c).join(', ') : '';
-            wrap.innerHTML = `<div style="padding:1rem;color:var(--cp-ink-muted);font-size:0.82rem;">Tabel kosong. Kolom: ${cols || '—'}</div>`;
+            const colNames = currentColumns.map(c => c.column_name || c).join(', ');
+            wrap.innerHTML = toolbar + `<div style="padding:1rem;color:var(--cp-ink-muted);font-size:0.82rem;">Tabel kosong. Kolom: ${colNames || '—'}</div>`;
             return;
         }
+
         const keys = Object.keys(data.rows[0]);
-        wrap.innerHTML = `
-            <div style="font-size:0.72rem;color:var(--cp-ink-muted);margin-bottom:6px;">${data.total} baris total</div>
+        const firstKey = keys[0];
+
+        wrap.innerHTML = toolbar + `
+            <div style="overflow-x:auto;max-height:400px;overflow-y:auto;">
             <table class="cp-table" style="font-size:0.78rem;">
-                <thead><tr>${keys.map(k=>`<th style="white-space:nowrap;">${k}</th>`).join('')}</tr></thead>
-                <tbody>${data.rows.map(r=>`<tr>${keys.map(k=>`<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r[k]??'<span style="color:#aaa;">NULL</span>'}</td>`).join('')}</tr>`).join('')}</tbody>
-            </table>`;
+                <thead><tr>${keys.map(k=>`<th style="white-space:nowrap;">${k}</th>`).join('')}<th style="width:80px;">Aksi</th></tr></thead>
+                <tbody>${data.rows.map((r, ri) => {
+                    const pkVal = JSON.stringify({[firstKey]: r[firstKey]}).replace(/"/g, '&quot;');
+                    return `<tr>
+                        ${keys.map(k => `<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" ondblclick="inlineEdit(this,'${table}','${firstKey}','${String(r[firstKey]).replace(/'/g,"\\'")}','${k}')">${r[k] ?? '<span style=color:#aaa>NULL</span>'}</td>`).join('')}
+                        <td style="white-space:nowrap;">
+                            <button onclick="confirmAction('Hapus baris ini?','',()=>deleteRowAction('${table}',${pkVal}))" style="padding:2px 8px;border-radius:0.4rem;border:1px solid #f5c6c6;background:#fde8e8;color:#9b2c2c;font-size:0.68rem;font-weight:700;cursor:pointer;">Hapus</button>
+                        </td>
+                    </tr>`;
+                }).join('')}</tbody>
+            </table></div>`;
     };
 
+    // ── Inline edit ───────────────────────────────────────────────────────
+    window.inlineEdit = (td, table, pkCol, pkVal, colName) => {
+        if (td.querySelector('input')) return;
+        const oldVal = td.innerText === 'NULL' ? '' : td.innerText;
+        const input = document.createElement('input');
+        input.type = 'text'; input.value = oldVal;
+        input.style.cssText = 'width:100%;padding:3px 6px;border:1px solid var(--cp-primary-start);border-radius:0.3rem;font-size:0.78rem;color:var(--cp-ink);';
+        td.innerHTML = ''; td.appendChild(input); input.focus(); input.select();
+
+        async function save() {
+            const newVal = input.value;
+            if (newVal === oldVal) { td.innerText = oldVal || 'NULL'; return; }
+            const pk = {}; pk[pkCol] = pkVal;
+            const data = {}; data[colName] = newVal === '' ? null : newVal;
+            const res = await API.updateRow(managerDbId, table, pk, data);
+            if (res.error) { showToast(res.error); td.innerText = oldVal || 'NULL'; return; }
+            td.innerText = newVal || 'NULL';
+            showToast('Diperbarui.');
+        }
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } if (e.key === 'Escape') { td.innerText = oldVal || 'NULL'; } });
+    };
+
+    // ── Add row form ──────────────────────────────────────────────────────
+    window.showAddRowForm = () => {
+        const wrap = document.getElementById('ar-fields');
+        const editableCols = currentColumns.filter(c => {
+            const name = (c.column_name || c).toLowerCase();
+            const type = (c.data_type || '').toLowerCase();
+            return name !== 'id' && !type.includes('serial');
+        });
+        wrap.innerHTML = editableCols.map(c => {
+            const name = c.column_name || c;
+            const type = c.data_type || '';
+            return `<div>
+                <label style="font-size:0.68rem;font-weight:700;color:var(--cp-ink-muted);display:block;margin-bottom:2px;">${name} <span style="color:#aaa;font-weight:600;">${type}</span></label>
+                <input type="text" data-col="${name}" placeholder="${c.is_nullable === 'YES' ? 'nullable' : 'required'}" style="width:100%;padding:6px 8px;border:1px solid var(--cp-soft-border);border-radius:0.4rem;font-size:0.8rem;color:var(--cp-ink);">
+            </div>`;
+        }).join('');
+        document.getElementById('db-add-row-form').style.display = 'block';
+        document.getElementById('db-add-row-form').scrollIntoView({behavior:'smooth'});
+    };
+
+    window.submitInsertRow = async () => {
+        const inputs = document.querySelectorAll('#ar-fields input[data-col]');
+        const data = {};
+        inputs.forEach(inp => { if (inp.value.trim() !== '') data[inp.dataset.col] = inp.value.trim(); });
+        if (!Object.keys(data).length) { showToast('Isi minimal 1 kolom.'); return; }
+        const res = await API.insertRow(managerDbId, currentTable, data);
+        if (res.error) { showToast(res.error); return; }
+        showToast('Baris ditambahkan!');
+        document.getElementById('db-add-row-form').style.display = 'none';
+        loadTable(currentTable);
+    };
+
+    // ── Delete row ────────────────────────────────────────────────────────
+    window.deleteRowAction = async (table, pk) => {
+        const res = await API.deleteRow(managerDbId, table, pk);
+        if (res.error) { showToast(res.error); return; }
+        showToast('Baris dihapus.');
+        loadTable(table);
+    };
+
+    // ── SQL query ─────────────────────────────────────────────────────────
     window.runQuery = async () => {
         const sql = document.getElementById('db-sql-input').value.trim();
         if (!sql || !managerDbId) return;
@@ -421,6 +640,7 @@
         } else {
             wrap.innerHTML = `<div style="color:#3b5136;font-size:0.82rem;font-weight:700;padding:8px;background:#eaf4dd;border-radius:0.5rem;">${data.message || data.affected + ' baris terpengaruh.'}</div>`;
         }
+        if (currentTable) loadTable(currentTable);
     };
 
     // ── Confirm ───────────────────────────────────────────────────────────

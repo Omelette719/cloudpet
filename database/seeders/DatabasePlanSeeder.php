@@ -17,10 +17,12 @@ class DatabasePlanSeeder extends Seeder
         ];
 
         foreach ($plans as $p) {
-            Plan::updateOrCreate(
-                ['service_type' => 'DATABASE', 'name' => $p['name']],
-                array_merge($p, ['id' => (string) Str::uuid(), 'service_type' => 'DATABASE'])
-            );
+            $existing = Plan::where('service_type', 'DATABASE')->where('name', $p['name'])->first();
+            if ($existing) {
+                $existing->update(['vcpu' => $p['vcpu'], 'ram' => $p['ram'], 'storage' => $p['storage'], 'price' => $p['price']]);
+            } else {
+                Plan::create(array_merge($p, ['id' => (string) Str::uuid(), 'service_type' => 'DATABASE']));
+            }
         }
     }
 }

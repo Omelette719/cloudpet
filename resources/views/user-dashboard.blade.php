@@ -49,6 +49,15 @@
                 </div>
             </div>
 
+            {{-- Database --}}
+            <div class="cp-stat">
+                <span style="font-size:1.8rem;"></span>
+                <div>
+                    <p class="cp-stat-label">Database</p>
+                    <p class="cp-stat-value">{{ $user->managedDatabases()->whereNotIn('status', ['TERMINATED'])->count() }} / {{ $user->maxDatabases() }}</p>
+                </div>
+            </div>
+
             {{-- Saldo --}}
             <div class="cp-stat" style="cursor:pointer;" onclick="document.getElementById('billing-section').scrollIntoView({behavior:'smooth'})">
                 <span style="font-size:1.8rem;"></span>
@@ -90,12 +99,10 @@
                 </a>
             </div>
 
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--cp-soft-border);">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--cp-soft-border);">
                 <div style="text-align:center;padding:10px;background:var(--cp-soft);border-radius:0.7rem;">
-                    <div style="font-size:0.62rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Compute Plans</div>
-                    <div style="font-size:0.82rem;font-weight:800;color:var(--cp-ink);">
-                        {{ implode(', ', array_map('ucfirst', $user->allowedComputePlans())) }}
-                    </div>
+                    <div style="font-size:0.62rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Compute Max</div>
+                    <div style="font-size:0.82rem;font-weight:800;color:var(--cp-ink);">{{ $user->maxVcpu() }} vCPU · {{ $user->maxRamMb() / 1024 }} GB</div>
                 </div>
                 <div style="text-align:center;padding:10px;background:var(--cp-soft);border-radius:0.7rem;">
                     <div style="font-size:0.62rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Block Storage</div>
@@ -104,6 +111,10 @@
                 <div style="text-align:center;padding:10px;background:var(--cp-soft);border-radius:0.7rem;">
                     <div style="font-size:0.62rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Bucket</div>
                     <div style="font-size:0.82rem;font-weight:800;color:var(--cp-ink);">{{ $bucketCount }} / {{ $user->maxBuckets() }}</div>
+                </div>
+                <div style="text-align:center;padding:10px;background:var(--cp-soft);border-radius:0.7rem;">
+                    <div style="font-size:0.62rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Database</div>
+                    <div style="font-size:0.82rem;font-weight:800;color:var(--cp-ink);">{{ $user->managedDatabases()->whereNotIn('status', ['TERMINATED'])->count() }} / {{ $user->maxDatabases() }}</div>
                 </div>
             </div>
         </div>

@@ -29,23 +29,40 @@ class ComputeController extends Controller
 
     public function store(Request $request)
     {
+        $validCpus = implode(',', ComputeService::VCPU_OPTIONS);
+        $validRams = implode(',', ComputeService::RAM_OPTIONS);
+
         $request->validate([
-            'plan' => 'required|string|in:nano,micro,small,medium,large',
-            'type' => 'nullable|string|in:vm,ide,notebook',
-            'os'   => 'nullable|string|in:ubuntu-22.04,ubuntu-20.04,debian-12,alpine',
+            'cpu'       => 'required|integer|in:' . $validCpus,
+            'ram'       => 'required|integer|in:' . $validRams,
+            'type'      => 'nullable|string|in:vm,ide,notebook',
+            'os'        => 'nullable|string|in:ubuntu-22.04,ubuntu-20.04,debian-12,alpine',
+            'volume_id' => 'required|integer|exists:block_volumes,id',
         ]);
 
         $user = $request->user();
 
-        if (!$user->canUsePlan($request->plan)) {
+        if (!$user->canUseResources($request->cpu, $request->ram)) {
             return response()->json([
-                'error' => 'Plan "' . $request->plan . '" tidak tersedia di membership ' . $user->membershipLabel() . '. Upgrade membership untuk menggunakan plan ini.',
+                'error' => "Membership {$user->membershipLabel()} maksimal {$user->maxVcpu()} vCPU dan " . ($user->maxRamMb() / 1024) . " GB RAM. Upgrade untuk resource lebih besar.",
             ], 403);
         }
 
-        $instance = $this->service->createInstance($user, $request->plan, [
-            'type' => $request->input('type', ComputeService::DEFAULT_TYPE),
-            'os'   => $request->input('os',   ComputeService::DEFAULT_OS),
+        $volume = \App\Models\BlockVolume::where('id', $request->volume_id)
+            ->where('user_id', $user->id)
+            ->where('status', 'AVAILABLE')
+            ->first();
+
+        if (!$volume) {
+            return response()->json(['error' => 'Volume tidak tersedia. Pastikan volume berstatus AVAILABLE.'], 422);
+        }
+
+        $instance = $this->service->createInstance($user, [
+            'type'      => $request->input('type', ComputeService::DEFAULT_TYPE),
+            'os'        => $request->input('os',   ComputeService::DEFAULT_OS),
+            'cpu'       => $request->cpu,
+            'ram'       => $request->ram,
+            'volume_id' => $volume->id,
         ]);
 
         return response()->json($instance, 201);
@@ -93,12 +110,24 @@ class ComputeController extends Controller
     {
         $user = $request->user();
 
+        $volumes = $user
+            ? \App\Models\BlockVolume::where('user_id', $user->id)
+                ->where('status', 'AVAILABLE')
+                ->select('id', 'volume_name', 'size_gb')
+                ->get()
+            : [];
+
         return response()->json([
-            'plans'          => ComputeService::PLANS,
-            'types'          => ComputeService::TYPES,
-            'images'         => ComputeService::IMAGES,
-            'allowed_plans'  => $user ? $user->allowedComputePlans() : ['nano', 'micro', 'small'],
-            'membership'     => $user ? $user->storage_plan ?? 'free' : 'free',
+            'types'             => ComputeService::TYPES,
+            'images'            => ComputeService::IMAGES,
+            'vcpu_options'      => ComputeService::VCPU_OPTIONS,
+            'ram_options'       => ComputeService::RAM_OPTIONS,
+            'cpu_rate'          => ComputeService::CPU_RATE,
+            'ram_rate'          => ComputeService::RAM_RATE,
+            'max_vcpu'          => $user ? $user->maxVcpu() : 1,
+            'max_ram_mb'        => $user ? $user->maxRamMb() : 2048,
+            'membership'        => $user ? $user->storage_plan ?? 'free' : 'free',
+            'available_volumes' => $volumes,
         ]);
     }
 

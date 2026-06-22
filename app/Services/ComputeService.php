@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\BlockVolume;
 use App\Models\ComputeInstance;
 use Illuminate\Support\Str;
 
@@ -30,14 +31,17 @@ class ComputeService
         ],
     ];
 
-    // ─── Katalog plan ─────────────────────────────────────────────────────────
-    const PLANS = [
-        'nano'   => ['cpu' => 0.5, 'memory' => 512,  'disk' => 10,  'price' => 500,  'label' => 'Nano'],
-        'micro'  => ['cpu' => 1,   'memory' => 1024, 'disk' => 20,  'price' => 1000, 'label' => 'Micro'],
-        'small'  => ['cpu' => 1,   'memory' => 2048, 'disk' => 40,  'price' => 2000, 'label' => 'Small'],
-        'medium' => ['cpu' => 2,   'memory' => 4096, 'disk' => 80,  'price' => 4000, 'label' => 'Medium'],
-        'large'  => ['cpu' => 4,   'memory' => 8192, 'disk' => 160, 'price' => 8000, 'label' => 'Large'],
-    ];
+    // ─── Pricing (custom resources) ──────────────────────────────────────────
+    const CPU_RATE  = 500;  // Rp per vCPU per jam
+    const RAM_RATE  = 500;  // Rp per GB RAM per jam
+
+    const VCPU_OPTIONS = [1, 2, 3, 4, 6, 8];
+    const RAM_OPTIONS  = [512, 1024, 2048, 4096, 8192, 16384]; // MB
+
+    public static function calculatePrice(int $cpu, int $ramMb): int
+    {
+        return (int) ($cpu * self::CPU_RATE + ($ramMb / 1024) * self::RAM_RATE);
+    }
 
     // ─── OS untuk VM ──────────────────────────────────────────────────────────
     const IMAGES = [
@@ -52,9 +56,9 @@ class ComputeService
 
     // ─── Buat instance ────────────────────────────────────────────────────────
 
-    public function createInstance($user, string $planKey, array $options = []): ComputeInstance
+    public function createInstance($user, array $options = []): ComputeInstance
     {
-        $instance = $this->initInstance($user, $planKey, $options);
+        $instance = $this->initInstance($user, $options);
 
         $artisan = base_path('artisan');
         $logFile = storage_path('logs/provision_' . $instance->id . '.out');
@@ -72,13 +76,16 @@ class ComputeService
 
     // ─── Tahap 1: buat record di DB ──────────────────────────────────────────
 
-    public function initInstance($user, string $planKey, array $options = []): ComputeInstance
+    public function initInstance($user, array $options = []): ComputeInstance
     {
-        $type   = $options['type'] ?? self::DEFAULT_TYPE;
-        $plan   = self::PLANS[$planKey] ?? self::PLANS['micro'];
-        $osKey  = $options['os']        ?? self::DEFAULT_OS;
-        $osConf = self::IMAGES[$osKey]  ?? self::IMAGES[self::DEFAULT_OS];
-        $typeConf = self::TYPES[$type]  ?? self::TYPES['vm'];
+        $type     = $options['type'] ?? self::DEFAULT_TYPE;
+        $cpu      = $options['cpu']  ?? 1;
+        $ramMb    = $options['ram']  ?? 1024;
+        $osKey    = $options['os']   ?? self::DEFAULT_OS;
+        $osConf   = self::IMAGES[$osKey]  ?? self::IMAGES[self::DEFAULT_OS];
+        $typeConf = self::TYPES[$type]    ?? self::TYPES['vm'];
+        $volumeId = $options['volume_id'] ?? null;
+        $price    = self::calculatePrice($cpu, $ramMb);
 
         $prefix = match($type) {
             'ide'      => 'ide',
@@ -86,14 +93,16 @@ class ComputeService
             default    => 'vm',
         };
 
+        $ramLabel = $ramMb >= 1024 ? ($ramMb / 1024) . 'GB' : $ramMb . 'MB';
+
         return ComputeInstance::create([
             'user_id'       => $user->id,
             'name'          => $prefix . '-' . Str::random(8),
-            'plan'          => $planKey,
+            'plan'          => "{$cpu}c-{$ramLabel}",
             'os'            => $osKey,
             'status'        => 'PROVISIONING',
-            'metadata'      => ['type' => $type],
-            'provision_log' => "[1/3] Menyiapkan {$typeConf['label']} (plan: {$plan['label']})...\n",
+            'metadata'      => ['type' => $type, 'volume_id' => $volumeId, 'cpu' => $cpu, 'ram' => $ramMb],
+            'provision_log' => "[1/3] Menyiapkan {$typeConf['label']} ({$cpu} vCPU, {$ramLabel})...\n",
         ]);
     }
 
@@ -115,7 +124,10 @@ class ComputeService
     protected function provisionVm(ComputeInstance $instance): ComputeInstance
     {
         $user   = $instance->user;
-        $plan   = self::PLANS[$instance->plan] ?? self::PLANS['micro'];
+        $meta   = $instance->metadata ?? [];
+        $cpu    = $meta['cpu'] ?? 1;
+        $ramMb  = $meta['ram'] ?? 1024;
+        $price  = self::calculatePrice($cpu, $ramMb);
         $osKey  = $instance->os               ?? self::DEFAULT_OS;
         $osConf = self::IMAGES[$osKey]         ?? self::IMAGES[self::DEFAULT_OS];
 
@@ -123,14 +135,16 @@ class ComputeService
 
         $sshPort   = $this->pickAvailablePort(10000, 19999);
         $wettyPort = $this->pickAvailablePort(20000, 29999);
+        $ramLabel  = $ramMb >= 1024 ? ($ramMb / 1024) . 'GB' : $ramMb . 'MB';
 
-        $storagePath    = storage_path('app/compute/' . $instance->id);
+        $dockerVolume   = $this->resolveStorageMount($instance);
+        $storagePath    = $dockerVolume ?? storage_path('app/compute/' . $instance->id);
         $containerName  = 'cp_' . $instance->id . '_' . $user->id;
         $wettyName      = 'cp_wetty_' . $instance->id . '_' . $user->id;
         $sshPassword    = Str::random(16);
         $networkName    = 'cp_user_' . $user->id;
 
-        if (!is_dir($storagePath)) mkdir($storagePath, 0755, true);
+        if (!$dockerVolume && !is_dir($storagePath)) mkdir($storagePath, 0755, true);
 
         // Network
         $appendLog('[2/3] Menyiapkan network isolasi...');
@@ -156,10 +170,14 @@ class ComputeService
         }
         $appendLog('  Image siap. Menjalankan container...');
 
+        $storageFlag = $dockerVolume
+            ? "-v {$dockerVolume}:/data"
+            : '-v ' . escapeshellarg($storagePath) . ':/data';
+
         $vmCmd = sprintf(
-            'docker run -d --name %s --memory=%dm --cpus=%s --network=%s -p %d:22 -v %s:/data --restart=unless-stopped %s %s -c %s',
-            escapeshellarg($containerName), $plan['memory'], $plan['cpu'],
-            escapeshellarg($networkName), $sshPort, escapeshellarg($storagePath),
+            'docker run -d --name %s --memory=%dm --cpus=%s --network=%s -p %d:22 %s --restart=unless-stopped %s %s -c %s',
+            escapeshellarg($containerName), $ramMb, $cpu,
+            escapeshellarg($networkName), $sshPort, $storageFlag,
             escapeshellarg($osConf['image']), $shell, escapeshellarg($bootstrap)
         );
         $run = $execStream($vmCmd . ' 2>&1');
@@ -192,10 +210,13 @@ class ComputeService
         $containerIp = $this->getContainerIp($containerName, $networkName);
         $appendLog('✅ VM siap! SSH port: ' . $sshPort . ($wettyPort ? ' | Web terminal: ' . $wettyPort : ''));
 
+        $volumeId = $instance->metadata['volume_id'] ?? null;
+        $volume   = $volumeId ? BlockVolume::find($volumeId) : null;
+
         $instance->status         = 'RUNNING';
         $instance->started_at     = now();
         $instance->ip_address     = $containerIp;
-        $instance->price_per_hour = $plan['price'];
+        $instance->price_per_hour = $price;
         $instance->metadata       = [
             'type'            => 'vm',
             'container_id'    => $containerId,
@@ -203,18 +224,21 @@ class ComputeService
             'wetty_container' => $wettyOk ? $wettyName : null,
             'network'         => $networkName,
             'storage_path'    => $storagePath,
+            'volume_id'       => $volumeId,
+            'volume_name'     => $volume?->volume_name,
+            'volume_size_gb'  => $volume?->size_gb,
             'ssh_port'        => $sshPort,
             'ssh_user'        => 'root',
             'ssh_password'    => $sshPassword,
             'wetty_port'      => $wettyPort,
             'os'              => $osKey,
             'os_label'        => $osConf['label'],
-            'plan'            => $instance->plan,
-            'plan_label'      => $plan['label'],
-            'resources'       => ['cpu' => $plan['cpu'], 'memory' => $plan['memory'], 'disk' => $plan['disk']],
-            'price_per_hour'  => $plan['price'],
+            'plan_label'      => "{$cpu} vCPU · {$ramLabel}",
+            'resources'       => ['cpu' => $cpu, 'memory' => $ramMb],
+            'price_per_hour'  => $price,
         ];
         $instance->save();
+        $this->attachVolumeToInstance($instance);
         return $instance;
     }
 
@@ -223,16 +247,21 @@ class ComputeService
     protected function provisionIde(ComputeInstance $instance): ComputeInstance
     {
         $user    = $instance->user;
-        $plan    = self::PLANS[$instance->plan] ?? self::PLANS['micro'];
+        $meta    = $instance->metadata ?? [];
+        $cpu     = $meta['cpu'] ?? 1;
+        $ramMb   = $meta['ram'] ?? 1024;
+        $price   = self::calculatePrice($cpu, $ramMb);
+        $ramLabel = $ramMb >= 1024 ? ($ramMb / 1024) . 'GB' : $ramMb . 'MB';
         [$appendLog, $execStream] = $this->makeHelpers($instance);
 
-        $idePort      = $this->pickAvailablePort(30000, 39999);
-        $storagePath  = storage_path('app/compute/' . $instance->id);
+        $idePort       = $this->pickAvailablePort(30000, 39999);
+        $dockerVolume  = $this->resolveStorageMount($instance);
+        $storagePath   = $dockerVolume ?? storage_path('app/compute/' . $instance->id);
         $containerName = 'cp_ide_' . $instance->id . '_' . $user->id;
         $idePassword   = Str::random(16);
         $networkName   = 'cp_user_' . $user->id;
 
-        if (!is_dir($storagePath)) mkdir($storagePath, 0755, true);
+        if (!$dockerVolume && !is_dir($storagePath)) mkdir($storagePath, 0755, true);
 
         $appendLog('[2/3] Menyiapkan network...');
         try { $this->ensureNetwork($networkName); }
@@ -250,11 +279,15 @@ class ComputeService
         }
         $appendLog('  Image siap. Menjalankan IDE...');
 
+        $storageFlag = $dockerVolume
+            ? "-v {$dockerVolume}:/home/coder/project"
+            : '-v ' . escapeshellarg($storagePath) . ':/home/coder/project';
+
         $cmd = sprintf(
-            'docker run -d --name %s --memory=%dm --cpus=%s --network=%s -p %d:8080 -v %s:/home/coder/project -e PASSWORD=%s --restart=unless-stopped codercom/code-server:latest',
-            escapeshellarg($containerName), $plan['memory'], $plan['cpu'],
+            'docker run -d --name %s --memory=%dm --cpus=%s --network=%s -p %d:8080 %s -e PASSWORD=%s --restart=unless-stopped codercom/code-server:latest',
+            escapeshellarg($containerName), $ramMb, $cpu,
             escapeshellarg($networkName), $idePort,
-            escapeshellarg($storagePath), escapeshellarg($idePassword)
+            $storageFlag, escapeshellarg($idePassword)
         );
         $run = $execStream($cmd . ' 2>&1');
         if ($run['rc'] !== 0) {
@@ -268,23 +301,29 @@ class ComputeService
 
         $appendLog('✅ Cloud IDE siap! Buka di: http://localhost:' . $idePort);
 
+        $volumeId = $instance->metadata['volume_id'] ?? null;
+        $volume   = $volumeId ? BlockVolume::find($volumeId) : null;
+
         $instance->status         = 'RUNNING';
         $instance->started_at     = now();
-        $instance->price_per_hour = $plan['price'];
+        $instance->price_per_hour = $price;
         $instance->metadata       = [
             'type'           => 'ide',
             'container_id'   => $containerId,
             'container_name' => $containerName,
             'network'        => $networkName,
             'storage_path'   => $storagePath,
+            'volume_id'      => $volumeId,
+            'volume_name'    => $volume?->volume_name,
+            'volume_size_gb' => $volume?->size_gb,
             'ide_port'       => $idePort,
             'ide_password'   => $idePassword,
-            'plan'           => $instance->plan,
-            'plan_label'     => $plan['label'],
-            'resources'      => ['cpu' => $plan['cpu'], 'memory' => $plan['memory'], 'disk' => $plan['disk']],
-            'price_per_hour' => $plan['price'],
+            'plan_label'     => "{$cpu} vCPU · {$ramLabel}",
+            'resources'      => ['cpu' => $cpu, 'memory' => $ramMb],
+            'price_per_hour' => $price,
         ];
         $instance->save();
+        $this->attachVolumeToInstance($instance);
         return $instance;
     }
 
@@ -293,16 +332,21 @@ class ComputeService
     protected function provisionNotebook(ComputeInstance $instance): ComputeInstance
     {
         $user    = $instance->user;
-        $plan    = self::PLANS[$instance->plan] ?? self::PLANS['micro'];
+        $meta    = $instance->metadata ?? [];
+        $cpu     = $meta['cpu'] ?? 1;
+        $ramMb   = $meta['ram'] ?? 1024;
+        $price   = self::calculatePrice($cpu, $ramMb);
+        $ramLabel = $ramMb >= 1024 ? ($ramMb / 1024) . 'GB' : $ramMb . 'MB';
         [$appendLog, $execStream] = $this->makeHelpers($instance);
 
-        $nbPort       = $this->pickAvailablePort(40000, 49999);
-        $storagePath  = storage_path('app/compute/' . $instance->id);
+        $nbPort        = $this->pickAvailablePort(40000, 49999);
+        $dockerVolume  = $this->resolveStorageMount($instance);
+        $storagePath   = $dockerVolume ?? storage_path('app/compute/' . $instance->id);
         $containerName = 'cp_nb_' . $instance->id . '_' . $user->id;
         $nbToken       = Str::random(32);
         $networkName   = 'cp_user_' . $user->id;
 
-        if (!is_dir($storagePath)) mkdir($storagePath, 0755, true);
+        if (!$dockerVolume && !is_dir($storagePath)) mkdir($storagePath, 0755, true);
 
         $appendLog('[2/3] Menyiapkan network...');
         try { $this->ensureNetwork($networkName); }
@@ -320,11 +364,15 @@ class ComputeService
         }
         $appendLog('  Image siap. Menjalankan Jupyter...');
 
+        $storageFlag = $dockerVolume
+            ? "-v {$dockerVolume}:/home/jovyan/work"
+            : '-v ' . escapeshellarg($storagePath) . ':/home/jovyan/work';
+
         $cmd = sprintf(
-            'docker run -d --name %s --memory=%dm --cpus=%s --network=%s -p %d:8888 -v %s:/home/jovyan/work -e JUPYTER_TOKEN=%s --restart=unless-stopped jupyter/minimal-notebook:latest',
-            escapeshellarg($containerName), $plan['memory'], $plan['cpu'],
+            'docker run -d --name %s --memory=%dm --cpus=%s --network=%s -p %d:8888 %s -e JUPYTER_TOKEN=%s --restart=unless-stopped jupyter/minimal-notebook:latest',
+            escapeshellarg($containerName), $ramMb, $cpu,
             escapeshellarg($networkName), $nbPort,
-            escapeshellarg($storagePath), escapeshellarg($nbToken)
+            $storageFlag, escapeshellarg($nbToken)
         );
         $run = $execStream($cmd . ' 2>&1');
         if ($run['rc'] !== 0) {
@@ -338,23 +386,29 @@ class ComputeService
 
         $appendLog('✅ Jupyter Notebook siap! Buka di: http://localhost:' . $nbPort . '/?token=' . $nbToken);
 
+        $volumeId = $instance->metadata['volume_id'] ?? null;
+        $volume   = $volumeId ? BlockVolume::find($volumeId) : null;
+
         $instance->status         = 'RUNNING';
         $instance->started_at     = now();
-        $instance->price_per_hour = $plan['price'];
+        $instance->price_per_hour = $price;
         $instance->metadata       = [
             'type'           => 'notebook',
             'container_id'   => $containerId,
             'container_name' => $containerName,
             'network'        => $networkName,
             'storage_path'   => $storagePath,
+            'volume_id'      => $volumeId,
+            'volume_name'    => $volume?->volume_name,
+            'volume_size_gb' => $volume?->size_gb,
             'nb_port'        => $nbPort,
             'nb_token'       => $nbToken,
-            'plan'           => $instance->plan,
-            'plan_label'     => $plan['label'],
-            'resources'      => ['cpu' => $plan['cpu'], 'memory' => $plan['memory'], 'disk' => $plan['disk']],
-            'price_per_hour' => $plan['price'],
+            'plan_label'     => "{$cpu} vCPU · {$ramLabel}",
+            'resources'      => ['cpu' => $cpu, 'memory' => $ramMb],
+            'price_per_hour' => $price,
         ];
         $instance->save();
+        $this->attachVolumeToInstance($instance);
         return $instance;
     }
 
@@ -407,6 +461,7 @@ class ComputeService
                 }
                 $instance->status = 'TERMINATED'; $instance->stopped_at = now();
                 $this->computeUsageAndCost($instance);
+                $this->detachVolumeFromInstance($instance);
                 break;
         }
 
@@ -435,22 +490,71 @@ class ComputeService
             'block_io'  => trim($parts[4] ?? '0B / 0B'),
         ];
 
-        // Disk usage dari volume /data (atau mount point sesuai tipe)
+        // Disk usage — jika pakai block volume, tampilkan volume size sebagai total
         $mountPoint = match($meta['type'] ?? 'vm') {
             'ide'      => '/home/coder/project',
             'notebook' => '/home/jovyan/work',
             default    => '/data',
         };
 
-        exec('docker exec ' . escapeshellarg($target) . ' df -h ' . escapeshellarg($mountPoint) . ' 2>&1', $dfOut, $dfRc);
-        if ($dfRc === 0 && isset($dfOut[1])) {
-            // Format: Filesystem Size Used Avail Use% Mounted
-            $cols = preg_split('/\s+/', trim($dfOut[1]));
-            $stats['disk_used'] = ($cols[2] ?? '—') . ' / ' . ($cols[1] ?? '—');
-            $stats['disk_pct']  = rtrim($cols[4] ?? '0', '%');
+        $volumeSizeGb = $meta['volume_size_gb'] ?? null;
+
+        if ($volumeSizeGb) {
+            exec('docker exec ' . escapeshellarg($target) . ' du -sb ' . escapeshellarg($mountPoint) . ' 2>/dev/null', $duOut, $duRc);
+            $usedBytes = $duRc === 0 ? (int) ($duOut[0] ?? 0) : 0;
+            $usedGb    = $usedBytes / (1024 ** 3);
+            $usedLabel = $usedGb >= 1 ? round($usedGb, 1) . 'G' : round($usedBytes / (1024 ** 2), 1) . 'M';
+            $diskPct   = $volumeSizeGb > 0 ? round(($usedGb / $volumeSizeGb) * 100, 0) : 0;
+
+            $stats['disk_used'] = $usedLabel . ' / ' . $volumeSizeGb . 'G';
+            $stats['disk_pct']  = $diskPct;
+
+            // Soft enforcement: kalau melebihi 100%, set read-only lalu stop
+            if ($usedGb >= $volumeSizeGb) {
+                $stats['disk_over_limit'] = true;
+                // Set mount read-only agar tidak bisa tulis lagi
+                exec('docker exec ' . escapeshellarg($target) . ' chmod -R a-w ' . escapeshellarg($mountPoint) . ' 2>/dev/null');
+            }
+        } else {
+            exec('docker exec ' . escapeshellarg($target) . ' df -h ' . escapeshellarg($mountPoint) . ' 2>&1', $dfOut, $dfRc);
+            if ($dfRc === 0 && isset($dfOut[1])) {
+                $cols = preg_split('/\s+/', trim($dfOut[1]));
+                $stats['disk_used'] = ($cols[2] ?? '—') . ' / ' . ($cols[1] ?? '—');
+                $stats['disk_pct']  = rtrim($cols[4] ?? '0', '%');
+            }
         }
 
         return $stats;
+    }
+
+    // ─── Storage mount helper ────────────────────────────────────────────────
+
+    protected function resolveStorageMount(ComputeInstance $instance): ?string
+    {
+        $volumeId = $instance->metadata['volume_id'] ?? null;
+        if (!$volumeId) return null;
+
+        $volume = BlockVolume::find($volumeId);
+        if (!$volume || !$volume->provider_volume_id) return null;
+
+        return "cp_vol_{$volume->provider_volume_id}";
+    }
+
+    protected function attachVolumeToInstance(ComputeInstance $instance): void
+    {
+        $volumeId = $instance->metadata['volume_id'] ?? null;
+        if (!$volumeId) return;
+
+        BlockVolume::where('id', $volumeId)->update([
+            'status' => 'ATTACHED',
+            'compute_instance_id' => $instance->id,
+        ]);
+    }
+
+    protected function detachVolumeFromInstance(ComputeInstance $instance): void
+    {
+        BlockVolume::where('compute_instance_id', $instance->id)
+            ->update(['status' => 'AVAILABLE', 'compute_instance_id' => null]);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────

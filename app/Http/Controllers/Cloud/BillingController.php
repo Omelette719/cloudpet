@@ -27,12 +27,16 @@ class BillingController extends Controller
             'membership_plan'        => $user->storage_plan ?? 'free',
             'membership_label'       => $user->membershipLabel(),
             'membership_expires_at'  => $user->storage_plan_expires_at?->toDateString(),
-            'allowed_compute_plans'  => $user->allowedComputePlans(),
+            'max_vcpu'               => $user->maxVcpu(),
+            'max_ram_mb'             => $user->maxRamMb(),
             'volume_used_gb'         => $user->volumeUsedGb(),
             'volume_limit_gb'        => $user->volumeLimitGb(),
             'volume_used_pct'        => $user->volumeUsedPercent(),
             'max_buckets'            => $user->maxBuckets(),
             'bucket_count'           => $user->storageBuckets()->count(),
+            'allowed_db_plans'       => $user->allowedDbPlans(),
+            'max_databases'          => $user->maxDatabases(),
+            'database_count'         => $user->managedDatabases()->whereNotIn('status', ['TERMINATED'])->count(),
             'can_run_instances'      => $user->canRunInstances(),
         ]);
     }

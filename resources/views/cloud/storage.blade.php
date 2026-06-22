@@ -27,6 +27,10 @@
                         <div style="font-size:0.6rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.04em;">Bucket</div>
                         <div style="font-size:0.95rem;font-weight:800;color:var(--cp-ink);" id="bucket-usage">—</div>
                     </div>
+                    <div style="text-align:center;padding:8px 16px;background:var(--cp-soft);border-radius:0.7rem;">
+                        <div style="font-size:0.6rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.04em;">Database</div>
+                        <div style="font-size:0.95rem;font-weight:800;color:var(--cp-ink);" id="db-usage">—</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -35,10 +39,10 @@
         <h3 class="cp-section-title">Pilih Paket</h3>
         <div class="cp-grid-4" style="margin-top:0;">
             @foreach ([
-                ['key' => 'free',     'icon' => '🌱', 'label' => 'Gratis',   'price' => 'Gratis',          'color' => '#6b7280', 'compute' => 'Nano, Micro, Small',                       'volume' => '30 GB',    'buckets' => '1 bucket'],
-                ['key' => 'starter',  'icon' => '🚀', 'label' => 'Starter',  'price' => 'Rp 15.000/bln',   'color' => '#2563eb', 'compute' => 'Nano, Micro, Small, Medium',                'volume' => '100 GB',   'buckets' => '3 bucket'],
-                ['key' => 'pro',      'icon' => '⚡', 'label' => 'Pro',       'price' => 'Rp 50.000/bln',   'color' => '#7c3aed', 'compute' => 'Semua plan',                                'volume' => '512 GB',   'buckets' => '10 bucket'],
-                ['key' => 'business', 'icon' => '🏢', 'label' => 'Business', 'price' => 'Rp 150.000/bln',  'color' => '#b45309', 'compute' => 'Semua plan',                                'volume' => '2 TB',     'buckets' => '50 bucket'],
+                ['key' => 'free',     'icon' => '🌱', 'label' => 'Gratis',   'price' => 'Gratis',          'color' => '#6b7280', 'compute' => 'Max 1 vCPU, 2 GB RAM',    'volume' => '30 GB',    'buckets' => '1 bucket',   'db' => '1 database (Micro)'],
+                ['key' => 'starter',  'icon' => '🚀', 'label' => 'Starter',  'price' => 'Rp 15.000/bln',   'color' => '#2563eb', 'compute' => 'Max 2 vCPU, 4 GB RAM',    'volume' => '100 GB',   'buckets' => '3 bucket',   'db' => '3 database (Micro, Small)'],
+                ['key' => 'pro',      'icon' => '⚡', 'label' => 'Pro',       'price' => 'Rp 50.000/bln',   'color' => '#7c3aed', 'compute' => 'Max 4 vCPU, 8 GB RAM',    'volume' => '512 GB',   'buckets' => '10 bucket',  'db' => '5 database (Semua plan)'],
+                ['key' => 'business', 'icon' => '🏢', 'label' => 'Business', 'price' => 'Rp 150.000/bln',  'color' => '#b45309', 'compute' => 'Max 8 vCPU, 16 GB RAM',   'volume' => '2 TB',     'buckets' => '50 bucket',  'db' => '20 database (Semua plan)'],
             ] as $plan)
                 <div class="cp-card" id="plan-card-{{ $plan['key'] }}"
                     style="display:flex;flex-direction:column;gap:10px;border:2px solid var(--cp-soft-border);transition:border-color 0.2s;">
@@ -58,6 +62,9 @@
                         </li>
                         <li style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:var(--cp-ink-muted);">
                             <span style="color:var(--cp-primary-strong);font-weight:700;">📦</span> {{ $plan['buckets'] }}
+                        </li>
+                        <li style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:var(--cp-ink-muted);">
+                            <span style="color:var(--cp-primary-strong);font-weight:700;">🗄️</span> {{ $plan['db'] }}
                         </li>
                     </ul>
                     <button onclick="subscribePlan('{{ $plan['key'] }}')" id="btn-{{ $plan['key'] }}"
@@ -114,6 +121,7 @@
             document.getElementById('expires-label').innerText = d.membership_expires_at ? 'Berlaku hingga ' + d.membership_expires_at : '';
             document.getElementById('volume-usage').innerText = d.volume_used_gb + ' / ' + d.volume_limit_gb + ' GB';
             document.getElementById('bucket-usage').innerText = d.bucket_count + ' / ' + d.max_buckets;
+            document.getElementById('db-usage').innerText = (d.database_count||0) + ' / ' + (d.max_databases||1);
 
             // Highlight active plan
             document.querySelectorAll('[id^="plan-card-"]').forEach(el => {

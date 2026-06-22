@@ -35,36 +35,48 @@ class User extends Authenticatable
 
     const MEMBERSHIP_PLANS = [
         'free' => [
-            'label'                  => 'Gratis',
-            'allowed_compute_plans'  => ['nano', 'micro', 'small'],
-            'volume_limit_gb'        => 30,
-            'max_buckets'            => 1,
-            'price_month'            => 0,
-            'color'                  => '#6b7280',
+            'label'           => 'Gratis',
+            'max_vcpu'        => 1,
+            'max_ram_mb'      => 2048,
+            'allowed_db_plans'=> ['db-micro'],
+            'volume_limit_gb' => 30,
+            'max_buckets'     => 1,
+            'max_databases'   => 1,
+            'price_month'     => 0,
+            'color'           => '#6b7280',
         ],
         'starter' => [
-            'label'                  => 'Starter',
-            'allowed_compute_plans'  => ['nano', 'micro', 'small', 'medium'],
-            'volume_limit_gb'        => 100,
-            'max_buckets'            => 3,
-            'price_month'            => 15000,
-            'color'                  => '#2563eb',
+            'label'           => 'Starter',
+            'max_vcpu'        => 2,
+            'max_ram_mb'      => 4096,
+            'allowed_db_plans'=> ['db-micro', 'db-small'],
+            'volume_limit_gb' => 100,
+            'max_buckets'     => 3,
+            'max_databases'   => 3,
+            'price_month'     => 15000,
+            'color'           => '#2563eb',
         ],
         'pro' => [
-            'label'                  => 'Pro',
-            'allowed_compute_plans'  => ['nano', 'micro', 'small', 'medium', 'large'],
-            'volume_limit_gb'        => 512,
-            'max_buckets'            => 10,
-            'price_month'            => 50000,
-            'color'                  => '#7c3aed',
+            'label'           => 'Pro',
+            'max_vcpu'        => 4,
+            'max_ram_mb'      => 8192,
+            'allowed_db_plans'=> ['db-micro', 'db-small', 'db-medium'],
+            'volume_limit_gb' => 512,
+            'max_buckets'     => 10,
+            'max_databases'   => 5,
+            'price_month'     => 50000,
+            'color'           => '#7c3aed',
         ],
         'business' => [
-            'label'                  => 'Business',
-            'allowed_compute_plans'  => ['nano', 'micro', 'small', 'medium', 'large'],
-            'volume_limit_gb'        => 2048,
-            'max_buckets'            => 50,
-            'price_month'            => 150000,
-            'color'                  => '#b45309',
+            'label'           => 'Business',
+            'max_vcpu'        => 8,
+            'max_ram_mb'      => 16384,
+            'allowed_db_plans'=> ['db-micro', 'db-small', 'db-medium'],
+            'volume_limit_gb' => 2048,
+            'max_buckets'     => 50,
+            'max_databases'   => 20,
+            'price_month'     => 150000,
+            'color'           => '#b45309',
         ],
     ];
 
@@ -86,14 +98,20 @@ class User extends Authenticatable
         return $this->membershipTier()['label'];
     }
 
-    public function allowedComputePlans(): array
+    public function maxVcpu(): int
     {
-        return $this->membershipTier()['allowed_compute_plans'];
+        return $this->membershipTier()['max_vcpu'];
     }
 
-    public function canUsePlan(string $plan): bool
+    public function maxRamMb(): int
     {
-        return in_array($plan, $this->allowedComputePlans());
+        return $this->membershipTier()['max_ram_mb'];
+    }
+
+    public function canUseResources(int $vcpu, int $ramMb): bool
+    {
+        return $vcpu >= 1 && $vcpu <= $this->maxVcpu()
+            && $ramMb >= 512 && $ramMb <= $this->maxRamMb();
     }
 
     // ── Volume (block storage) limits ────────────────────────────────────────
@@ -132,6 +150,30 @@ class User extends Authenticatable
     public function canCreateBucket(): bool
     {
         return $this->storageBuckets()->count() < $this->maxBuckets();
+    }
+
+    // ── Database limits ──────────────────────────────────────────────────────
+
+    public function allowedDbPlans(): array
+    {
+        return $this->membershipTier()['allowed_db_plans'];
+    }
+
+    public function canUseDbPlan(string $planName): bool
+    {
+        return in_array($planName, $this->allowedDbPlans());
+    }
+
+    public function maxDatabases(): int
+    {
+        return $this->membershipTier()['max_databases'];
+    }
+
+    public function canCreateDatabase(): bool
+    {
+        return $this->managedDatabases()
+            ->whereNotIn('status', ['TERMINATED'])
+            ->count() < $this->maxDatabases();
     }
 
     // ── Instance check ───────────────────────────────────────────────────────

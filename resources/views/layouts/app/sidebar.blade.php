@@ -10,23 +10,28 @@
     </div>
 
     <nav class="cp-sidebar-nav">
-        <a href="{{ route('admin.dashboard') }}"
-              wire:navigate
+        <a href="{{ route('admin.dashboard') }}" wire:navigate
            class="cp-side-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
-            <span>⚙️</span>
-            <span>Admin Dashboard</span>
+            <span>📊</span>
+            <span>Dashboard</span>
         </a>
 
-        <a class="cp-side-link soon">
+        <a href="{{ route('admin.plans') }}" wire:navigate
+           class="cp-side-link {{ request()->routeIs('admin.plans') ? 'active' : '' }}">
             <span>🧩</span>
-            <span>Manajemen Layanan</span>
-            <span class="cp-chip">Soon</span>
+            <span>Kelola Plans</span>
         </a>
 
-        <a class="cp-side-link soon">
+        <a href="{{ route('admin.users') }}" wire:navigate
+           class="cp-side-link {{ request()->routeIs('admin.users') ? 'active' : '' }}">
+            <span>👥</span>
+            <span>Users & Billing</span>
+        </a>
+
+        <a href="{{ route('admin.logs') }}" wire:navigate
+           class="cp-side-link {{ request()->routeIs('admin.logs') ? 'active' : '' }}">
             <span>🛡️</span>
-            <span>Audit & Security</span>
-            <span class="cp-chip">Soon</span>
+            <span>Logs & Monitoring</span>
         </a>
     </nav>
 

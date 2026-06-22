@@ -37,18 +37,16 @@
                         </div>
                     </div>
 
-                    {{-- Pilih Plan --}}
+                    {{-- Pilih vCPU --}}
                     <div style="margin-bottom:14px;">
-                        <label class="cp-label" style="color:var(--cp-ink);font-size:0.78rem;margin-bottom:8px;display:block;">Plan</label>
-                        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;" id="plan-selector">
-                            @foreach(['nano','micro','small','medium','large'] as $p)
-                            <button class="plan-btn" data-plan="{{ $p }}"
-                                style="padding:10px 6px;border-radius:0.75rem;border:1px solid var(--cp-soft-border);background:#fff;cursor:pointer;text-align:center;transition:all 0.15s;">
-                                <div style="font-size:0.8rem;font-weight:800;color:var(--cp-ink);text-transform:capitalize;">{{ $p }}</div>
-                                <div style="font-size:0.62rem;color:var(--cp-ink-muted);margin-top:2px;" id="plan-spec-{{ $p }}"></div>
-                            </button>
-                            @endforeach
-                        </div>
+                        <label class="cp-label" style="color:var(--cp-ink);font-size:0.78rem;margin-bottom:8px;display:block;">vCPU</label>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;" id="cpu-selector"></div>
+                    </div>
+
+                    {{-- Pilih RAM --}}
+                    <div style="margin-bottom:14px;">
+                        <label class="cp-label" style="color:var(--cp-ink);font-size:0.78rem;margin-bottom:8px;display:block;">RAM</label>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;" id="ram-selector"></div>
                     </div>
 
                     {{-- Pilih OS (hanya untuk VM) --}}
@@ -70,6 +68,17 @@
                         </div>
                     </div>
 
+                    {{-- Pilih Block Volume --}}
+                    <div style="margin-bottom:14px;">
+                        <label class="cp-label" style="color:var(--cp-ink);font-size:0.78rem;margin-bottom:8px;display:block;">Block Volume (Disk)</label>
+                        <select id="volume-selector" style="width:100%;padding:9px 12px;border-radius:0.75rem;border:1px solid var(--cp-soft-border);font-size:0.82rem;color:var(--cp-ink);font-weight:600;background:#fff;">
+                            <option value="">Memuat volume...</option>
+                        </select>
+                        <div style="font-size:0.68rem;color:var(--cp-ink-muted);margin-top:4px;">
+                            Belum punya volume? <a href="{{ route('cloud.volumes') }}" style="color:var(--cp-primary-strong);font-weight:700;text-decoration:underline;">Buat di Block Storage</a>
+                        </div>
+                    </div>
+
                     {{-- Ringkasan & Buat --}}
                     <div style="background:var(--cp-soft);border:1px solid var(--cp-soft-border);border-radius:0.9rem;padding:14px;">
                         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
@@ -82,7 +91,7 @@
                                 <div style="font-size:1.1rem;font-weight:800;color:var(--cp-ink);" id="sum-ram">—</div>
                             </div>
                             <div style="text-align:center;">
-                                <div style="font-size:0.62rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.05em;">Disk</div>
+                                <div style="font-size:0.62rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.05em;">Volume</div>
                                 <div style="font-size:1.1rem;font-weight:800;color:var(--cp-ink);" id="sum-disk">—</div>
                             </div>
                         </div>
@@ -229,7 +238,7 @@
     const API = {
         plans:  () => fetch('/cloud/api/plans').then(r => r.json()),
         list:   (archived) => fetch('/cloud/api/instances' + (archived ? '?archived=1' : ''), { credentials: 'same-origin' }).then(r => r.ok ? r.json() : []).catch(() => []),
-        create: (plan, type, os) => fetch('{{ route('cloud.api.instances.store') }}', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: JSON.stringify({ plan, type, os }), credentials: 'same-origin' }).then(r => r.json()),
+        create: (cpu, ram, type, os, volume_id) => fetch('{{ route('cloud.api.instances.store') }}', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: JSON.stringify({ cpu, ram, type, os, volume_id }), credentials: 'same-origin' }).then(r => r.json()),
         action: (id, action) => fetch(`/cloud/api/instances/${id}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: JSON.stringify({ action }), credentials: 'same-origin' }).then(r => r.json()),
         log:    (id) => fetch(`/cloud/api/instances/${id}/log`, { credentials: 'same-origin' }).then(r => r.json()),
         stats:  (id) => fetch(`/cloud/api/instances/${id}/stats`, { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null),
@@ -249,23 +258,77 @@
         notebook: { icon: '📓', label: 'Notebook',         color: '#1e1a2e', text: '#c8a5f0' },
     };
 
-    let plans = {}, allowedPlans = [], selectedPlan = null, selectedType = null, selectedOs = 'ubuntu-22.04', currentTab = 'active';
+    let availableVolumes = [], selectedCpu = null, selectedRam = null, selectedType = null, selectedOs = 'ubuntu-22.04', currentTab = 'active';
+    let maxVcpu = 1, maxRamMb = 2048, cpuRate = 500, ramRate = 500;
 
-    // ── Load plans ─────────────────────────────────────────────────────────
+    // ── Load config + volumes ─────────────────────────────────────────────
     API.plans().then(data => {
-        plans = data.plans || {};
-        allowedPlans = data.allowed_plans || Object.keys(plans);
-        Object.entries(plans).forEach(([key, p]) => {
-            const el = document.getElementById('plan-spec-' + key);
-            if (el) el.innerText = p.cpu + 'C · ' + (p.memory >= 1024 ? (p.memory/1024)+'GB' : p.memory+'MB');
-            const btn = document.querySelector(`.plan-btn[data-plan="${key}"]`);
-            if (btn && !allowedPlans.includes(key)) {
-                btn.disabled = true;
-                btn.style.opacity = '0.45';
-                btn.style.cursor = 'not-allowed';
-                btn.insertAdjacentHTML('beforeend', '<div style="font-size:0.58rem;color:#9b2c2c;margin-top:3px;font-weight:700;">🔒 Upgrade</div>');
-            }
+        maxVcpu  = data.max_vcpu || 1;
+        maxRamMb = data.max_ram_mb || 2048;
+        cpuRate  = data.cpu_rate || 500;
+        ramRate  = data.ram_rate || 500;
+        availableVolumes = data.available_volumes || [];
+
+        // Render vCPU buttons
+        const cpuWrap = document.getElementById('cpu-selector');
+        (data.vcpu_options || [1,2,3,4]).forEach(c => {
+            const locked = c > maxVcpu;
+            cpuWrap.insertAdjacentHTML('beforeend', `
+                <button class="cpu-btn" data-cpu="${c}" ${locked?'disabled':''} style="padding:8px 14px;border-radius:0.7rem;border:1px solid var(--cp-soft-border);background:#fff;cursor:${locked?'not-allowed':'pointer'};text-align:center;opacity:${locked?'0.4':'1'};transition:all 0.15s;min-width:60px;">
+                    <div style="font-size:0.85rem;font-weight:800;color:var(--cp-ink);">${c}</div>
+                    <div style="font-size:0.6rem;color:var(--cp-ink-muted);">vCPU</div>
+                    ${locked?'<div style="font-size:0.55rem;color:#9b2c2c;font-weight:700;">🔒</div>':''}
+                </button>`);
         });
+
+        // Render RAM buttons
+        const ramWrap = document.getElementById('ram-selector');
+        (data.ram_options || [512,1024,2048,4096]).forEach(r => {
+            const locked = r > maxRamMb;
+            const label = r >= 1024 ? (r/1024)+' GB' : r+' MB';
+            ramWrap.insertAdjacentHTML('beforeend', `
+                <button class="ram-btn" data-ram="${r}" ${locked?'disabled':''} style="padding:8px 14px;border-radius:0.7rem;border:1px solid var(--cp-soft-border);background:#fff;cursor:${locked?'not-allowed':'pointer'};text-align:center;opacity:${locked?'0.4':'1'};transition:all 0.15s;min-width:70px;">
+                    <div style="font-size:0.85rem;font-weight:800;color:var(--cp-ink);">${label}</div>
+                    <div style="font-size:0.6rem;color:var(--cp-ink-muted);">RAM</div>
+                    ${locked?'<div style="font-size:0.55rem;color:#9b2c2c;font-weight:700;">🔒</div>':''}
+                </button>`);
+        });
+
+        // CPU click handlers
+        document.querySelectorAll('.cpu-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (btn.disabled) return;
+                selectedCpu = parseInt(btn.dataset.cpu);
+                document.querySelectorAll('.cpu-btn').forEach(b => { if(!b.disabled){b.style.background='#fff';b.style.borderColor='var(--cp-soft-border)';} });
+                btn.style.background='linear-gradient(135deg,var(--cp-primary-start),var(--cp-primary-end))';
+                btn.style.borderColor='var(--cp-primary-end)';
+                btn.querySelectorAll('div').forEach(d=>d.style.color='#fff');
+                updateSummary();
+            });
+        });
+
+        // RAM click handlers
+        document.querySelectorAll('.ram-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (btn.disabled) return;
+                selectedRam = parseInt(btn.dataset.ram);
+                document.querySelectorAll('.ram-btn').forEach(b => { if(!b.disabled){b.style.background='#fff';b.style.borderColor='var(--cp-soft-border)';} });
+                btn.style.background='linear-gradient(135deg,var(--cp-primary-start),var(--cp-primary-end))';
+                btn.style.borderColor='var(--cp-primary-end)';
+                btn.querySelectorAll('div').forEach(d=>d.style.color='#fff');
+                updateSummary();
+            });
+        });
+
+        // Volume selector
+        const volSelect = document.getElementById('volume-selector');
+        if (!availableVolumes.length) {
+            volSelect.innerHTML = '<option value="">Tidak ada volume tersedia — buat dulu di Block Storage</option>';
+        } else {
+            volSelect.innerHTML = '<option value="">-- Pilih Volume --</option>' +
+                availableVolumes.map(v => `<option value="${v.id}">${v.volume_name} (${v.size_gb} GB)</option>`).join('');
+        }
+        volSelect.addEventListener('change', updateSummary);
     });
 
     // ── Tipe selector ──────────────────────────────────────────────────────
@@ -292,22 +355,6 @@
         });
     });
 
-    // ── Plan selector ──────────────────────────────────────────────────────
-    document.querySelectorAll('.plan-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (!allowedPlans.includes(btn.dataset.plan)) return;
-            selectedPlan = btn.dataset.plan;
-            document.querySelectorAll('.plan-btn').forEach(b => {
-                b.style.background = '#fff'; b.style.borderColor = 'var(--cp-soft-border)';
-                b.querySelectorAll('div').forEach(d => d.style.color = '');
-            });
-            btn.style.background  = 'linear-gradient(135deg,var(--cp-primary-start),var(--cp-primary-end))';
-            btn.style.borderColor = 'var(--cp-primary-end)';
-            btn.querySelectorAll('div').forEach(d => d.style.color = '#fff');
-            updateSummary();
-        });
-    });
-
     // ── OS selector ────────────────────────────────────────────────────────
     document.querySelectorAll('.os-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -319,22 +366,27 @@
     document.querySelector('.os-btn[data-os="ubuntu-22.04"]').click();
 
     function updateSummary() {
-        if (!selectedPlan || !plans[selectedPlan] || !selectedType) return;
-        const p = plans[selectedPlan];
-        document.getElementById('sum-cpu').innerText   = p.cpu + ' vCPU';
-        document.getElementById('sum-ram').innerText   = p.memory >= 1024 ? (p.memory/1024)+' GB' : p.memory+' MB';
-        document.getElementById('sum-disk').innerText  = p.disk + ' GB';
-        document.getElementById('sum-price').innerText = 'Rp ' + p.price.toLocaleString('id-ID') + '/jam';
-        document.getElementById('cp-create-btn').disabled = false;
+        if (!selectedCpu || !selectedRam || !selectedType) return;
+        const volId = document.getElementById('volume-selector').value;
+        const vol = availableVolumes.find(v => String(v.id) === volId);
+        const price = (selectedCpu * cpuRate) + ((selectedRam / 1024) * ramRate);
+
+        document.getElementById('sum-cpu').innerText   = selectedCpu + ' vCPU';
+        document.getElementById('sum-ram').innerText   = selectedRam >= 1024 ? (selectedRam/1024)+' GB' : selectedRam+' MB';
+        document.getElementById('sum-disk').innerText  = vol ? vol.volume_name + ' (' + vol.size_gb + 'GB)' : '— pilih volume';
+        document.getElementById('sum-price').innerText = 'Rp ' + price.toLocaleString('id-ID') + '/jam';
+        document.getElementById('cp-create-btn').disabled = !volId;
     }
 
     // ── Buat instance ──────────────────────────────────────────────────────
     document.getElementById('cp-create-btn').addEventListener('click', async () => {
-        if (!selectedPlan || !selectedType) return;
+        if (!selectedCpu || !selectedRam || !selectedType) return;
+        const volId = document.getElementById('volume-selector').value;
+        if (!volId) { return; }
         const btn = document.getElementById('cp-create-btn');
         btn.disabled = true; btn.innerText = 'Membuat...';
         let instance;
-        try { instance = await API.create(selectedPlan, selectedType, selectedOs); } catch(e) { instance = null; }
+        try { instance = await API.create(selectedCpu, selectedRam, selectedType, selectedOs, volId); } catch(e) { instance = null; }
         btn.innerText = 'Buat Instance'; btn.disabled = false;
         if (!instance || !instance.id) { showToast('Gagal membuat instance.'); return; }
         showToast('Instance sedang diprovisioning...');
@@ -447,7 +499,7 @@
                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
                     ${resources.cpu    ? `<span style="font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--cp-soft);color:var(--cp-ink-muted);">⚡ ${resources.cpu} vCPU</span>` : ''}
                     ${resources.memory ? `<span style="font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--cp-soft);color:var(--cp-ink-muted);">🧠 ${resources.memory >= 1024 ? resources.memory/1024+'GB' : resources.memory+'MB'}</span>` : ''}
-                    ${resources.disk   ? `<span style="font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--cp-soft);color:var(--cp-ink-muted);">💾 ${resources.disk}GB</span>` : ''}
+                    ${meta.volume_name ? `<span style="font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--cp-soft);color:var(--cp-ink-muted);">💽 ${meta.volume_name} (${meta.volume_size_gb}GB)</span>` : ''}
                 </div>
 
                 ${status === 'RUNNING' ? renderAccessInfo(meta, type, tm) : ''}
@@ -616,9 +668,27 @@
             if (data.disk_used !== undefined) {
                 const diskEl  = document.getElementById('stat-disk-' + instanceId);
                 const barDisk = document.getElementById('bar-disk-' + instanceId);
-                if (diskEl)  diskEl.innerText = data.disk_used || '—';
-                if (barDisk) barDisk.style.width = Math.min(parseFloat(data.disk_pct) || 0, 100) + '%';
-                if (barDisk && parseFloat(data.disk_pct) > 90) barDisk.style.background = '#dc2626';
+                const diskPct = parseFloat(data.disk_pct) || 0;
+                if (diskEl) diskEl.innerText = data.disk_used || '—';
+                if (barDisk) {
+                    barDisk.style.width = Math.min(diskPct, 100) + '%';
+                    barDisk.style.background = diskPct > 90 ? '#dc2626' : '';
+                }
+                // Warning jika disk melebihi limit
+                const warnId = 'disk-warn-' + instanceId;
+                let warnEl = document.getElementById(warnId);
+                if (data.disk_over_limit) {
+                    if (!warnEl) {
+                        const card = document.querySelector(`[data-instance-id="${instanceId}"]`);
+                        if (card) {
+                            warnEl = document.createElement('div');
+                            warnEl.id = warnId;
+                            warnEl.style.cssText = 'padding:8px 12px;background:#fde8e8;border:1px solid #f5c6c6;border-radius:0.65rem;font-size:0.78rem;font-weight:700;color:#9b2c2c;';
+                            warnEl.innerText = 'Disk penuh — volume melebihi batas. Hapus file atau upgrade volume.';
+                            card.insertBefore(warnEl, card.querySelector('[style*="border-top"]'));
+                        }
+                    }
+                } else if (warnEl) { warnEl.remove(); }
             }
 
             safeSetTimeout(fetchAndUpdate, 5000);

@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\ManagedDatabase;
 use App\Models\Plan;
-use App\Jobs\ProvisionManagedDatabase;
 use App\Models\User;
 use Illuminate\Support\Str;
 use Exception;
@@ -25,7 +24,16 @@ class DatabaseService
             throw new Exception('Pastikan akun aktif dan saldo mencukupi.');
         }
 
+        if (!$user->canCreateDatabase()) {
+            throw new Exception('Batas jumlah database tercapai (' . $user->maxDatabases() . ' untuk membership ' . $user->membershipLabel() . '). Upgrade membership untuk menambah.');
+        }
+
         $plan = Plan::where('id', $planId)->where('service_type', 'DATABASE')->firstOrFail();
+
+        if (!$user->canUseDbPlan($plan->name)) {
+            throw new Exception('Plan "' . $plan->name . '" tidak tersedia di membership ' . $user->membershipLabel() . '. Upgrade untuk menggunakan plan ini.');
+        }
+
         $engineConf = self::ENGINES[$engine] ?? null;
         if (!$engineConf) throw new Exception('Engine tidak valid.');
 
@@ -45,9 +53,19 @@ class DatabaseService
             'price_per_hour' => $plan->price,
         ]);
 
-        ProvisionManagedDatabase::dispatchSync($database);
+        // Background provisioning (seperti ComputeService)
+        $artisan = base_path('artisan');
+        $logFile = storage_path('logs/provision_db_' . $database->id . '.out');
 
-        return $database->refresh();
+        if (PHP_OS_FAMILY === 'Windows') {
+            pclose(popen(sprintf('start /B php %s database:provision %s > %s 2>&1',
+                escapeshellarg($artisan), escapeshellarg($database->id), escapeshellarg($logFile)), 'r'));
+        } else {
+            exec(sprintf('nohup php %s database:provision %s > %s 2>&1 &',
+                escapeshellarg($artisan), escapeshellarg($database->id), escapeshellarg($logFile)));
+        }
+
+        return $database;
     }
 
     public function provision(ManagedDatabase $database): ManagedDatabase
@@ -66,11 +84,11 @@ class DatabaseService
         // Network
         $this->ensureNetwork($networkName);
 
-        // Pull image
+        // Pull image (stream output real-time)
         $this->appendLog($database, "[2/4] Pulling image {$engineConf['image']}...");
-        exec('docker pull ' . escapeshellarg($engineConf['image']) . ' 2>&1', $pullOut, $pullRc);
+        $pullRc = $this->execStream($database, 'docker pull ' . escapeshellarg($engineConf['image']));
         if ($pullRc !== 0) {
-            throw new Exception('Gagal pull image: ' . implode(' ', $pullOut));
+            throw new Exception('Gagal pull image.');
         }
 
         // Run container
@@ -88,12 +106,12 @@ class DatabaseService
             escapeshellarg($engineConf['image'])
         );
 
-        exec($cmd . ' 2>&1', $runOut, $runRc);
-        if ($runRc !== 0) {
-            throw new Exception('Docker run gagal: ' . implode(' ', $runOut));
+        $runResult = $this->execStream($database, $cmd, true);
+        if ($runResult['rc'] !== 0) {
+            throw new Exception('Docker run gagal: ' . $runResult['last']);
         }
 
-        $containerId = trim($runOut[0] ?? '');
+        $containerId = trim($runResult['last']);
         $this->appendLog($database, "  Container: " . substr($containerId, 0, 12));
 
         // Wait for database to be ready
@@ -252,8 +270,20 @@ class DatabaseService
     {
         $used = ManagedDatabase::whereNotIn('status', ['TERMINATED'])
             ->whereNotNull('port')->pluck('port')->toArray();
-        do { $port = rand($min, $max); } while (in_array($port, $used));
-        return $port;
+
+        for ($attempts = 0; $attempts < 100; $attempts++) {
+            $port = rand($min, $max);
+            if (in_array($port, $used)) continue;
+
+            // Test apakah port benar-benar bisa di-bind (Windows Hyper-V bisa blokir)
+            $sock = @stream_socket_server("tcp://0.0.0.0:{$port}", $errno, $errstr);
+            if ($sock) {
+                fclose($sock);
+                return $port;
+            }
+        }
+
+        throw new Exception('Tidak ada port tersedia di range ' . $min . '-' . $max);
     }
 
     protected function computeUsage(ManagedDatabase $db): void
@@ -263,6 +293,38 @@ class DatabaseService
         $hours   = round(max(0, $stopped->getTimestamp() - $db->started_at->getTimestamp()) / 3600, 4);
         $db->usage_hours = ($db->usage_hours ?? 0) + $hours;
         $db->cost        = ($db->cost ?? 0) + round($hours * $db->price_per_hour, 2);
+    }
+
+    protected function execStream(ManagedDatabase $db, string $cmd, bool $returnDetail = false): mixed
+    {
+        $proc = proc_open($cmd . ' 2>&1', [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        if (!is_resource($proc)) {
+            return $returnDetail ? ['rc' => -1, 'last' => 'proc_open failed'] : -1;
+        }
+
+        stream_set_blocking($pipes[1], false);
+        stream_set_blocking($pipes[2], false);
+        $last = '';
+
+        while (true) {
+            $status = proc_get_status($proc);
+            foreach ([$pipes[1], $pipes[2]] as $pipe) {
+                $line = fgets($pipe);
+                if ($line !== false && trim($line) !== '') {
+                    $line = rtrim($line);
+                    $last = $line;
+                    $this->appendLog($db, '  ' . $line);
+                }
+            }
+            if (!$status['running'] && fgets($pipes[1]) === false && fgets($pipes[2]) === false) break;
+            usleep(100000);
+        }
+
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $rc = proc_close($proc);
+
+        return $returnDetail ? ['rc' => $rc, 'last' => $last] : $rc;
     }
 
     protected function appendLog(ManagedDatabase $db, string $line): void

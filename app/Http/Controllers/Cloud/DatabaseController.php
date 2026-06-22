@@ -78,11 +78,16 @@ class DatabaseController extends Controller
         return response()->json(['deleted' => true]);
     }
 
-    public function plans()
+    public function plans(Request $request)
     {
+        $user = $request->user();
+
         return response()->json([
-            'plans'   => Plan::where('service_type', 'DATABASE')->get(),
-            'engines' => collect(DatabaseService::ENGINES)->map(fn($e, $k) => ['key' => $k, 'label' => $e['label'], 'driver' => $e['driver']]),
+            'plans'            => Plan::where('service_type', 'DATABASE')->get(),
+            'engines'          => collect(DatabaseService::ENGINES)->map(fn($e, $k) => ['key' => $k, 'label' => $e['label'], 'driver' => $e['driver']]),
+            'allowed_db_plans' => $user ? $user->allowedDbPlans() : ['db-micro'],
+            'max_databases'    => $user ? $user->maxDatabases() : 1,
+            'current_count'    => $user ? $user->managedDatabases()->whereNotIn('status', ['TERMINATED'])->count() : 0,
         ]);
     }
 
@@ -181,6 +186,155 @@ class DatabaseController extends Controller
             }
 
             return response()->json(['affected' => $stmt->rowCount(), 'message' => 'Query berhasil.']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    // ── Table & Row CRUD ─────────────────────────────────────────────────
+
+    public function createTable(Request $request, $id)
+    {
+        $request->validate([
+            'table_name' => 'required|string|max:64|regex:/^[a-zA-Z_][a-zA-Z0-9_]*$/',
+            'columns'    => 'required|array|min:1',
+            'columns.*.name' => 'required|string|max:64',
+            'columns.*.type' => 'required|string|max:50',
+            'columns.*.nullable' => 'boolean',
+            'columns.*.primary' => 'boolean',
+        ]);
+
+        $db = ManagedDatabase::where('id', $id)->where('user_id', $request->user()->id)->firstOrFail();
+        if ($db->status !== 'RUNNING') return response()->json(['error' => 'Database tidak aktif.'], 422);
+
+        $driver = $db->metadata['driver'] ?? 'mysql';
+        $table  = $request->table_name;
+        $cols   = [];
+
+        foreach ($request->columns as $col) {
+            $name = preg_replace('/[^a-zA-Z0-9_]/', '', $col['name']);
+            $type = $col['type'];
+            $line = "\"{$name}\" {$type}";
+
+            if (!empty($col['primary'])) {
+                if ($driver === 'pgsql') {
+                    $line = "\"{$name}\" SERIAL PRIMARY KEY";
+                } else {
+                    $line = "`{$name}` INT AUTO_INCREMENT PRIMARY KEY";
+                }
+            } else {
+                if ($driver !== 'pgsql') $line = "`{$name}` {$type}";
+                if (empty($col['nullable'])) $line .= ' NOT NULL';
+            }
+
+            $cols[] = $line;
+        }
+
+        $q = $driver === 'pgsql'
+            ? "CREATE TABLE \"{$table}\" (" . implode(', ', $cols) . ")"
+            : "CREATE TABLE `{$table}` (" . implode(', ', $cols) . ")";
+
+        try {
+            $pdo = $this->service->connectPdo($db);
+            $pdo->exec($q);
+            return response()->json(['success' => true, 'sql' => $q]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    public function dropTable(Request $request, $id, $table)
+    {
+        $db = ManagedDatabase::where('id', $id)->where('user_id', $request->user()->id)->firstOrFail();
+        $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+        $driver = $db->metadata['driver'] ?? 'mysql';
+        $q = $driver === 'pgsql' ? "DROP TABLE IF EXISTS \"{$table}\"" : "DROP TABLE IF EXISTS `{$table}`";
+
+        try {
+            $pdo = $this->service->connectPdo($db);
+            $pdo->exec($q);
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    public function insertRow(Request $request, $id, $table)
+    {
+        $request->validate(['data' => 'required|array|min:1']);
+
+        $db = ManagedDatabase::where('id', $id)->where('user_id', $request->user()->id)->firstOrFail();
+        $table  = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+        $driver = $db->metadata['driver'] ?? 'mysql';
+        $data   = $request->data;
+
+        $colNames    = array_keys($data);
+        $placeholders = array_fill(0, count($data), '?');
+
+        $q = $driver === 'pgsql'
+            ? sprintf('INSERT INTO "%s" (%s) VALUES (%s)', $table, implode(', ', array_map(fn($c) => "\"$c\"", $colNames)), implode(', ', $placeholders))
+            : sprintf('INSERT INTO `%s` (%s) VALUES (%s)', $table, implode(', ', array_map(fn($c) => "`$c`", $colNames)), implode(', ', $placeholders));
+
+        try {
+            $pdo  = $this->service->connectPdo($db);
+            $stmt = $pdo->prepare($q);
+            $stmt->execute(array_values($data));
+            return response()->json(['success' => true, 'message' => 'Baris ditambahkan.']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    public function updateRow(Request $request, $id, $table)
+    {
+        $request->validate(['pk' => 'required|array', 'data' => 'required|array|min:1']);
+
+        $db = ManagedDatabase::where('id', $id)->where('user_id', $request->user()->id)->firstOrFail();
+        $table  = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+        $driver = $db->metadata['driver'] ?? 'mysql';
+        $data   = $request->data;
+        $pk     = $request->pk;
+
+        $quote = fn($c) => $driver === 'pgsql' ? "\"{$c}\"" : "`{$c}`";
+
+        $setClauses   = array_map(fn($c) => $quote($c) . ' = ?', array_keys($data));
+        $whereClauses = array_map(fn($c) => $quote($c) . ' = ?', array_keys($pk));
+
+        $q = sprintf('UPDATE %s SET %s WHERE %s',
+            $quote($table),
+            implode(', ', $setClauses),
+            implode(' AND ', $whereClauses)
+        );
+
+        try {
+            $pdo  = $this->service->connectPdo($db);
+            $stmt = $pdo->prepare($q);
+            $stmt->execute(array_merge(array_values($data), array_values($pk)));
+            return response()->json(['success' => true, 'message' => 'Baris diperbarui.']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    public function deleteRow(Request $request, $id, $table)
+    {
+        $request->validate(['pk' => 'required|array']);
+
+        $db = ManagedDatabase::where('id', $id)->where('user_id', $request->user()->id)->firstOrFail();
+        $table  = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+        $driver = $db->metadata['driver'] ?? 'mysql';
+        $pk     = $request->pk;
+
+        $quote = fn($c) => $driver === 'pgsql' ? "\"{$c}\"" : "`{$c}`";
+        $whereClauses = array_map(fn($c) => $quote($c) . ' = ?', array_keys($pk));
+
+        $q = sprintf('DELETE FROM %s WHERE %s', $quote($table), implode(' AND ', $whereClauses));
+
+        try {
+            $pdo  = $this->service->connectPdo($db);
+            $stmt = $pdo->prepare($q);
+            $stmt->execute(array_values($pk));
+            return response()->json(['success' => true, 'message' => 'Baris dihapus.']);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }

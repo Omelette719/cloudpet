@@ -118,9 +118,10 @@ class BillingService
                 $db->save();
             }
 
-            $parts = $instances->map(fn($i) => ($i->metadata['type'] ?? 'vm') . ':' . $i->name);
-            $parts = $parts->merge($databases->map(fn($d) => 'db:' . $d->db_name));
-            $desc  = $parts->join(', ');
+            $desc = collect()
+                ->merge($instances->map(fn($i) => ($i->metadata['type'] ?? 'vm') . ':' . $i->name)->values())
+                ->merge($databases->map(fn($d) => 'db:' . $d->db_name)->values())
+                ->join(', ');
             BillingTransaction::create([
                 'id'               => Str::uuid(),
                 'user_id'          => $user->id,

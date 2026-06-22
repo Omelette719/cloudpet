@@ -6,6 +6,7 @@ use App\Livewire\Dashboard\AdminDashboard;
 use App\Livewire\Dashboard\UserDashboard;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Cloud\ComputeController;
 use App\Http\Controllers\Cloud\DatabaseController;
 use App\Livewire\Bucket\BucketManager;
@@ -24,6 +25,29 @@ Route::middleware('auth')->group(function () {
         ->middleware('role:admin')
         ->name('admin.dashboard');
 
+    // Admin pages
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/admin/plans', fn() => view('admin.plans'))->name('admin.plans');
+        Route::get('/admin/users', fn() => view('admin.users'))->name('admin.users');
+        Route::get('/admin/logs',  fn() => view('admin.logs'))->name('admin.logs');
+    });
+
+    // Admin API
+    Route::prefix('admin/api')->middleware('role:admin')->group(function () {
+        Route::get('/stats',                    [AdminController::class, 'stats']);
+        Route::get('/server',                   [AdminController::class, 'serverStats']);
+        Route::get('/plans',                    [AdminController::class, 'plansList']);
+        Route::post('/plans',                   [AdminController::class, 'planStore']);
+        Route::put('/plans/{id}',               [AdminController::class, 'planUpdate']);
+        Route::delete('/plans/{id}',            [AdminController::class, 'planDestroy']);
+        Route::get('/users',                    [AdminController::class, 'usersList']);
+        Route::get('/users/{id}',               [AdminController::class, 'userShow']);
+        Route::put('/users/{id}',               [AdminController::class, 'userUpdate']);
+        Route::get('/logs/activity',            [AdminController::class, 'activityLogs']);
+        Route::get('/logs/resource-state',      [AdminController::class, 'resourceStateLogs']);
+        Route::get('/logs/errors',              [AdminController::class, 'errorLogs']);
+    });
+
     Route::get('/dashboard', UserDashboard::class)
         ->name('user.dashboard');
 
@@ -36,7 +60,7 @@ Route::middleware('auth')->group(function () {
         request()->session()->invalidate();
         request()->session()->regenerateToken();
 
-        return redirect()->route('home');
+        return redirect()->route('login');
     })->name('logout');
 
     // Cloud pages (user only)
@@ -90,9 +114,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/databases/{id}/log',         [DatabaseController::class, 'log'])->name('cloud.api.databases.log');
         Route::delete('/databases/{id}',          [DatabaseController::class, 'destroy'])->name('cloud.api.databases.destroy');
         Route::get('/databases/{id}/connection',  [DatabaseController::class, 'connectionInfo'])->name('cloud.api.databases.connection');
-        Route::get('/databases/{id}/tables',      [DatabaseController::class, 'tables'])->name('cloud.api.databases.tables');
-        Route::get('/databases/{id}/tables/{table}', [DatabaseController::class, 'tableRows'])->name('cloud.api.databases.table.rows');
-        Route::post('/databases/{id}/query',      [DatabaseController::class, 'executeQuery'])->name('cloud.api.databases.query');
+        Route::get('/databases/{id}/tables',             [DatabaseController::class, 'tables'])->name('cloud.api.databases.tables');
+        Route::post('/databases/{id}/tables/create',    [DatabaseController::class, 'createTable'])->name('cloud.api.databases.tables.create');
+        Route::delete('/databases/{id}/tables/{table}', [DatabaseController::class, 'dropTable'])->name('cloud.api.databases.tables.drop');
+        Route::get('/databases/{id}/tables/{table}',    [DatabaseController::class, 'tableRows'])->name('cloud.api.databases.table.rows');
+        Route::post('/databases/{id}/tables/{table}/rows',   [DatabaseController::class, 'insertRow'])->name('cloud.api.databases.table.insert');
+        Route::put('/databases/{id}/tables/{table}/rows',    [DatabaseController::class, 'updateRow'])->name('cloud.api.databases.table.update');
+        Route::delete('/databases/{id}/tables/{table}/rows', [DatabaseController::class, 'deleteRow'])->name('cloud.api.databases.table.delete');
+        Route::post('/databases/{id}/query',             [DatabaseController::class, 'executeQuery'])->name('cloud.api.databases.query');
         Route::get('/plans/database',             [DatabaseController::class, 'plans'])->name('cloud.api.plans.database');
     });
 
