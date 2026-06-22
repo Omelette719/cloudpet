@@ -16,6 +16,8 @@ class VolumeManager extends Component
     public ?int $attachingVolumeId = null;
     public string $attachInstanceId = '';
 
+    public ?int $provisioningVolumeId = null;
+
     protected $rules = [
         'volumeName' => 'required|string|min:3|max:50|regex:/^[a-zA-Z0-9_-]+$/',
         'sizeGb'     => 'required|integer|min:1|max:1000',
@@ -26,13 +28,18 @@ class VolumeManager extends Component
         $this->validate();
 
         try {
-            $volumeService->createBlockVolume(Auth::user(), $this->volumeName, $this->sizeGb);
-            session()->flash('success', 'Volume sedang diprovisioning!');
+            $volume = $volumeService->createBlockVolume(Auth::user(), $this->volumeName, $this->sizeGb);
+            $this->provisioningVolumeId = $volume->id;
             $this->reset('volumeName');
             $this->sizeGb = 10;
         } catch (\Exception $e) {
             session()->flash('error', $e->getMessage());
         }
+    }
+
+    public function dismissProvisioning(): void
+    {
+        $this->provisioningVolumeId = null;
     }
 
     public function openAttachModal(int $volumeId): void
@@ -99,9 +106,23 @@ class VolumeManager extends Component
             ->whereIn('status', ['RUNNING', 'STOPPED'])
             ->get();
 
+        $provisioningLog = null;
+        if ($this->provisioningVolumeId) {
+            $vol = BlockVolume::find($this->provisioningVolumeId);
+            if ($vol && $vol->user_id === Auth::id()) {
+                $provisioningLog = [
+                    'log'    => $vol->provision_log ?? '',
+                    'status' => $vol->status,
+                ];
+            } else {
+                $this->provisioningVolumeId = null;
+            }
+        }
+
         return view('livewire.volume.volume-manager', [
-            'volumes'   => $volumes,
-            'instances' => $instances,
+            'volumes'         => $volumes,
+            'instances'       => $instances,
+            'provisioningLog' => $provisioningLog,
         ]);
     }
 }

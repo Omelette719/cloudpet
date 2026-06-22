@@ -16,6 +16,7 @@ class BlockVolume extends Model
         'size_gb',
         'status',
         'provider_volume_id',
+        'provision_log',
     ];
 
     public function user()

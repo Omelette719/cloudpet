@@ -18,8 +18,14 @@ class CreateBucket extends Component
 
     public function createBucket()
     {
-        $this->loading = true; // Aktifkan loading state
+        $this->loading = true;
         $user = Auth::user();
+
+        if (!$user->canCreateBucket()) {
+            session()->flash('error', 'Batas jumlah bucket tercapai (' . $user->maxBuckets() . ' bucket untuk membership ' . $user->membershipLabel() . '). Upgrade membership untuk menambah bucket.');
+            $this->loading = false;
+            return;
+        }
 
         $accessKey  = 'AKIA' . strtoupper(Str::random(16));
         $secretKey  = Str::random(32);

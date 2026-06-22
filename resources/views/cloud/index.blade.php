@@ -13,7 +13,7 @@
         <div class="cp-grid-3">
 
             {{-- Cloud Computing (aktif) --}}
-            <a href="{{ route('cloud.computing') }}"
+            <a href="{{ route('cloud.computing') }}" wire:navigate
                style="display:flex; flex-direction:column; gap:0.75rem; padding:1.25rem; border-radius:1rem; background:#fff; border:1px solid var(--cp-soft-border); text-decoration:none; transition:box-shadow 0.18s, transform 0.18s; box-shadow:var(--cp-shadow);"
                onmouseenter="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 20px 48px rgba(34,48,31,0.18)'"
                onmouseleave="this.style.transform='translateY(0)'; this.style.boxShadow='var(--cp-shadow)'">
@@ -31,7 +31,7 @@
             </a>
 
             {{-- Storage / Bucket (Aktif) --}}
-            <a href="{{ route('cloud.bucket') }}"
+            <a href="{{ route('cloud.bucket') }}" wire:navigate
                style="display:flex; flex-direction:column; gap:0.75rem; padding:1.25rem; border-radius:1rem; background:#fff; border:1px solid var(--cp-soft-border); text-decoration:none; transition:box-shadow 0.18s, transform 0.18s; box-shadow:var(--cp-shadow);"
                onmouseenter="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 20px 48px rgba(34,48,31,0.18)'"
                onmouseleave="this.style.transform='translateY(0)'; this.style.boxShadow='var(--cp-shadow)'">
@@ -48,7 +48,7 @@
                 </div>
             </a>
             {{-- Block Storage  --}}
-            <a href="{{ route('cloud.volumes') }}"
+            <a href="{{ route('cloud.volumes') }}" wire:navigate
             style="display:flex; flex-direction:column; gap:0.75rem; padding:1.25rem; border-radius:1rem; background:#fff; border:1px solid var(--cp-soft-border); text-decoration:none; transition:box-shadow 0.18s, transform 0.18s; box-shadow:var(--cp-shadow);"
             onmouseenter="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 20px 48px rgba(34,48,31,0.18)'"
             onmouseleave="this.style.transform='translateY(0)'; this.style.boxShadow='var(--cp-shadow)'">

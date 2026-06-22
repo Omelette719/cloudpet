@@ -36,8 +36,11 @@ return [
     ],
 
     'ministack' => [
-        'url' => env('MINISTACK_URL'),
-        'key' => env('MINISTACK_API_KEY'),
+        'url'        => env('MINISTACK_URL', 'http://127.0.0.1:4566'),
+        'key'        => env('MINISTACK_API_KEY'),
+        'region'     => env('MINISTACK_REGION', 'id-1'),
+        'aws_key'    => env('AWS_ACCESS_KEY_ID', 'test'),
+        'aws_secret' => env('AWS_SECRET_ACCESS_KEY', 'test'),
     ],
 
 ];

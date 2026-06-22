@@ -90,7 +90,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/topup',              [\App\Http\Controllers\Cloud\BillingController::class, 'topUp'])->name('cloud.api.billing.topup');
         Route::get('/history',             [\App\Http\Controllers\Cloud\BillingController::class, 'history'])->name('cloud.api.billing.history');
         Route::post('/storage-subscribe',  [\App\Http\Controllers\Cloud\BillingController::class, 'storageSubscribe'])->name('cloud.api.billing.storage.subscribe');
-        Route::post('/storage-sync',       [\App\Http\Controllers\Cloud\BillingController::class, 'storageSync'])->name('cloud.api.billing.storage.sync');
     });
 
     // ── Halaman Storage ────────────────────────────────────────────────────────────

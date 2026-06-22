@@ -2,69 +2,56 @@
     {{-- Welcome banner --}}
     <div class="cp-banner">
         <div style="position:absolute;right:1rem;top:-0.8rem;font-size:4.8rem;opacity:0.22;">{{ $user->animal_avatar }}</div>
-        <div style="position:absolute;right:6rem;bottom:0.1rem;font-size:2.5rem;opacity:0.15;">☁️</div>
+        <div style="position:absolute;right:6rem;bottom:0.1rem;font-size:2.5rem;opacity:0.15;"></div>
         <div style="position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;">
             <div>
                 <p>Selamat datang kembali!</p>
                 <h2>{{ $user->name }} {{ $user->animal_avatar }}</h2>
                 <p>Member sejak {{ $user->created_at->translatedFormat('F Y') }}</p>
             </div>
-            <span class="cp-badge" style="background:rgba(255,255,255,0.2);color:#fff;">🌱 Member Aktif</span>
+            <span class="cp-badge" style="background:rgba(255,255,255,0.2);color:#fff;">{{ $user->membershipLabel() }}</span>
         </div>
     </div>
 
     <div style="margin-top:1rem;">
-        <h3 class="cp-section-title">📊 Ringkasan Akun</h3>
+        <h3 class="cp-section-title">Ringkasan Akun</h3>
 
-        {{-- Mengubah cp-grid-4 menjadi grid responsif agar 5 kartu muat dengan cantik --}}
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:1rem;">
 
             {{-- Compute --}}
             <div class="cp-stat">
-                <span style="font-size:1.8rem;">☁️</span>
+                <span style="font-size:1.8rem;"></span>
                 <div>
                     <p class="cp-stat-label">Layanan Aktif</p>
                     <p class="cp-stat-value" id="stat-instances">—</p>
                 </div>
             </div>
 
-            {{-- NEW: Block Storage (Volume) --}}
+            {{-- Block Storage --}}
             <div class="cp-stat">
-                <span style="font-size:1.8rem;">💽</span>
-                <div>
-                    <p class="cp-stat-label">Volume Aktif</p>
-                    <p class="cp-stat-value">
-                        {{ \App\Models\BlockVolume::where('user_id', auth()->id())->whereIn('status', ['AVAILABLE', 'ATTACHED'])->count() }}
-                    </p>
+                <span style="font-size:1.8rem;"></span>
+                <div style="width:100%;">
+                    <p class="cp-stat-label">Block Storage</p>
+                    <p class="cp-stat-value">{{ $user->volumeUsedGb() }} / {{ $user->volumeLimitGb() }} GB</p>
+                    @php $volPct = $user->volumeUsedPercent(); @endphp
+                    <div style="height:4px;background:#e5e7eb;border-radius:999px;margin-top:6px;">
+                        <div style="height:4px;background:{{ $volPct > 90 ? '#dc2626' : 'linear-gradient(90deg,var(--cp-primary-start),var(--cp-primary-end))' }};border-radius:999px;width:{{ min($volPct, 100) }}%;transition:width .5s;"></div>
+                    </div>
                 </div>
             </div>
 
             {{-- Bucket --}}
             <div class="cp-stat">
-                <span style="font-size:1.8rem;">📦</span>
+                <span style="font-size:1.8rem;"></span>
                 <div>
-                    <p class="cp-stat-label">Bucket Aktif</p>
-                    <p class="cp-stat-value" id="stat-buckets">
-                        {{ $bucketCount ?? 0 }}
-                    </p>
-                </div>
-            </div>
-
-            {{-- Storage Membership --}}
-            <div class="cp-stat" style="cursor:pointer;" onclick="document.getElementById('storage-section').scrollIntoView({behavior:'smooth'})">
-                <span style="font-size:1.8rem;">💾</span>
-                <div style="width:100%;">
-                    <p class="cp-stat-label">Storage Terpakai</p>
-                    <p class="cp-stat-value" id="stat-storage">— GB</p>
-                    <div style="height:4px;background:#e5e7eb;border-radius:999px;margin-top:6px;">
-                        <div id="stat-storage-bar" style="height:4px;background:linear-gradient(90deg,var(--cp-primary-start),var(--cp-primary-end));border-radius:999px;width:0%;transition:width .5s;"></div>
-                    </div>
+                    <p class="cp-stat-label">Bucket</p>
+                    <p class="cp-stat-value">{{ $bucketCount }} / {{ $user->maxBuckets() }}</p>
                 </div>
             </div>
 
             {{-- Saldo --}}
             <div class="cp-stat" style="cursor:pointer;" onclick="document.getElementById('billing-section').scrollIntoView({behavior:'smooth'})">
-                <span style="font-size:1.8rem;">💰</span>
+                <span style="font-size:1.8rem;"></span>
                 <div>
                     <p class="cp-stat-label">Saldo</p>
                     <p class="cp-stat-value" id="stat-balance">—</p>
@@ -74,9 +61,57 @@
         </div>
     </div>
 
+    {{-- Membership card --}}
+    <div style="margin-top:1rem;">
+        <h3 class="cp-section-title">Membership</h3>
+        <div class="cp-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:48px;height:48px;border-radius:0.85rem;background:var(--cp-soft);display:flex;align-items:center;justify-content:center;font-size:1.5rem;">
+                        @php
+                            $tierIcons = ['free' => '🌱', 'starter' => '🚀', 'pro' => '⚡', 'business' => '🏢'];
+                            $currentTier = $user->storage_plan ?? 'free';
+                        @endphp
+                        {{ $tierIcons[$currentTier] ?? '🌱' }}
+                    </div>
+                    <div>
+                        <div style="font-weight:800;font-size:1.05rem;color:var(--cp-ink);">{{ $user->membershipLabel() }}</div>
+                        <div style="font-size:0.75rem;color:var(--cp-ink-muted);font-weight:600;margin-top:2px;">
+                            @if($user->storage_plan_expires_at)
+                                Berlaku hingga {{ $user->storage_plan_expires_at->translatedFormat('d F Y') }}
+                            @else
+                                Paket gratis aktif
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                <a href="{{ route('cloud.storage') }}" wire:navigate class="cp-btn" style="width:auto;padding:9px 18px;font-size:0.88rem;border-radius:0.75rem;text-decoration:none;text-align:center;">
+                    Kelola Membership
+                </a>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--cp-soft-border);">
+                <div style="text-align:center;padding:10px;background:var(--cp-soft);border-radius:0.7rem;">
+                    <div style="font-size:0.62rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Compute Plans</div>
+                    <div style="font-size:0.82rem;font-weight:800;color:var(--cp-ink);">
+                        {{ implode(', ', array_map('ucfirst', $user->allowedComputePlans())) }}
+                    </div>
+                </div>
+                <div style="text-align:center;padding:10px;background:var(--cp-soft);border-radius:0.7rem;">
+                    <div style="font-size:0.62rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Block Storage</div>
+                    <div style="font-size:0.82rem;font-weight:800;color:var(--cp-ink);">{{ $user->volumeUsedGb() }} / {{ $user->volumeLimitGb() }} GB</div>
+                </div>
+                <div style="text-align:center;padding:10px;background:var(--cp-soft);border-radius:0.7rem;">
+                    <div style="font-size:0.62rem;font-weight:700;color:var(--cp-ink-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Bucket</div>
+                    <div style="font-size:0.82rem;font-weight:800;color:var(--cp-ink);">{{ $bucketCount }} / {{ $user->maxBuckets() }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Billing section --}}
     <div id="billing-section" style="margin-top:1rem;">
-        <h3 class="cp-section-title">💰 Saldo & Billing</h3>
+        <h3 class="cp-section-title">Saldo & Billing</h3>
         <div class="cp-grid-2">
 
             {{-- Saldo & top-up --}}
@@ -87,7 +122,6 @@
                         <div style="font-size:1.8rem;font-weight:800;color:var(--cp-ink);" id="balance-display">Rp —</div>
                         <div id="account-status-badge" style="margin-top:4px;"></div>
                     </div>
-                    <div style="font-size:2.5rem;">💰</div>
                 </div>
 
                 <div style="border-top:1px solid var(--cp-soft-border);padding-top:14px;">
@@ -107,7 +141,7 @@
                 </div>
 
                 <div style="margin-top:14px;padding:10px;background:var(--cp-soft);border-radius:0.75rem;">
-                    <div style="font-size:0.72rem;font-weight:700;color:var(--cp-ink-muted);margin-bottom:4px;">⚡ Estimasi biaya aktif</div>
+                    <div style="font-size:0.72rem;font-weight:700;color:var(--cp-ink-muted);margin-bottom:4px;">Estimasi biaya aktif</div>
                     <div style="font-size:0.85rem;font-weight:700;color:var(--cp-ink);" id="cost-estimate">—</div>
                 </div>
             </div>
@@ -122,40 +156,10 @@
         </div>
     </div>
 
-    {{-- Storage section --}}
-    <div id="storage-section" style="margin-top:1rem;">
-        <h3 class="cp-section-title">💾 Storage Membership</h3>
-        <div class="cp-card">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
-                <div style="flex:1;min-width:200px;">
-                    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
-                        <div style="font-size:0.78rem;font-weight:700;color:var(--cp-ink-muted);">Penggunaan Storage / Kuota</div>
-                        <div style="font-size:0.78rem;font-weight:700;color:var(--cp-ink);" id="storage-label">— / — GB</div>
-                    </div>
-                    <div style="height:8px;background:#e5e7eb;border-radius:999px;">
-                        <div id="storage-bar-main" style="height:8px;background:linear-gradient(90deg,var(--cp-primary-start),var(--cp-primary-end));border-radius:999px;width:0%;transition:width 0.5s;"></div>
-                    </div>
-                    <div style="display:flex;justify-content:space-between;margin-top:4px;">
-                        <div style="font-size:0.68rem;color:var(--cp-ink-muted);" id="storage-plan-badge">Paket: —</div>
-                        <div style="font-size:0.68rem;color:var(--cp-ink-muted);" id="storage-expires">—</div>
-                    </div>
-                </div>
-                <a href="{{ route('cloud.storage') }}" class="cp-btn" style="width:auto;padding:9px 18px;font-size:0.88rem;border-radius:0.75rem;text-decoration:none;text-align:center;">
-                    Kelola Storage →
-                </a>
-            </div>
-
-            <div id="storage-full-warning" style="display:none;margin-top:12px;padding:10px 14px;background:#fde8e8;border:1px solid #f5c6c6;border-radius:0.75rem;">
-                <div style="font-size:0.85rem;font-weight:700;color:#9b2c2c;">⚠️ Storage penuh — semua instance dihentikan otomatis.</div>
-                <div style="font-size:0.78rem;color:#c53030;margin-top:2px;">Langganan paket storage lebih besar atau hapus instance untuk membebaskan ruang.</div>
-            </div>
-        </div>
-    </div>
-
     {{-- Info akun --}}
     <div class="cp-grid-2" style="margin-top:1rem;">
         <div>
-            <h3 class="cp-section-title">👤 Info Akun</h3>
+            <h3 class="cp-section-title">Info Akun</h3>
             <div class="cp-card" style="padding:0;overflow:hidden;">
                 @foreach ([['label' => 'Avatar', 'value' => $user->animal_avatar . ' ' . $user->name], ['label' => 'Email', 'value' => $user->email], ['label' => 'Bergabung', 'value' => $user->created_at->translatedFormat('d F Y')]] as $row)
                     <div style="display:flex;align-items:center;gap:0.6rem;padding:0.85rem 1rem;border-bottom:1px solid #eef5e7;">
@@ -166,12 +170,13 @@
             </div>
         </div>
         <div>
-            <h3 class="cp-section-title">💡 Info & Tips</h3>
+            <h3 class="cp-section-title">Info & Tips</h3>
             <div class="cp-card" style="display:grid;gap:0.65rem;">
                 @foreach ([
-                    ['emoji' => '💰', 'title' => 'Pay as you go', 'desc' => 'Saldo dipotong per jam sesuai instance Compute yang berjalan. Stop instance untuk berhenti ditagih.'], 
-                    ['emoji' => '💽', 'title' => 'Tagihan Block Storage', 'desc' => 'Volume ditagihkan Rp 15/GB per jam, bahkan saat Compute Instance dimatikan. Hapus (Delete) jika tidak digunakan.'], 
-                    ['emoji' => '⚡', 'title' => 'Auto-stop saat saldo habis', 'desc' => 'Instance dihentikan otomatis kalau saldo tidak cukup. Top-up untuk menghidupkan kembali.']
+                    ['emoji' => '💰', 'title' => 'Pay as you go', 'desc' => 'Saldo dipotong per jam sesuai instance Compute yang berjalan. Stop instance untuk berhenti ditagih.'],
+                    ['emoji' => '💽', 'title' => 'Block Storage', 'desc' => 'Volume ditagihkan Rp 15/GB per jam, bahkan saat Compute Instance dimatikan. Hapus jika tidak digunakan.'],
+                    ['emoji' => '⚡', 'title' => 'Auto-stop', 'desc' => 'Instance dihentikan otomatis saat saldo habis. Top-up untuk menghidupkan kembali.'],
+                    ['emoji' => '🎫', 'title' => 'Membership', 'desc' => 'Upgrade membership untuk menggunakan plan compute lebih besar dan menambah kapasitas block storage & bucket.'],
                 ] as $tip)
                     <div class="cp-tip">
                         <span style="font-size:1.4rem;">{{ $tip['emoji'] }}</span>
@@ -188,8 +193,6 @@
 
 <script>
     const CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-
-    // Menghitung biaya block storage yang aktif melalui PHP (Blade)
     const volumeHourlyCost = {{ \App\Models\BlockVolume::where('user_id', auth()->id())->whereIn('status', ['AVAILABLE', 'ATTACHED'])->sum('size_gb') * 15 }};
 
     async function loadSummary() {
@@ -197,33 +200,15 @@
         if (!res.ok) return;
         const d = await res.json();
 
-        // Saldo
         document.getElementById('balance-display').innerText = 'Rp ' + parseFloat(d.balance).toLocaleString('id-ID');
         document.getElementById('stat-balance').innerText = 'Rp ' + parseFloat(d.balance).toLocaleString('id-ID');
 
-        // Account status badge
         const statusBadge = document.getElementById('account-status-badge');
         if (d.account_status === 'SUSPENDED') {
-            statusBadge.innerHTML = '<span style="font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:#fde8e8;color:#9b2c2c;">⚠️ Akun Suspended — Top-up saldo untuk mengaktifkan kembali</span>';
+            statusBadge.innerHTML = '<span style="font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:#fde8e8;color:#9b2c2c;">Akun Suspended — Top-up untuk mengaktifkan</span>';
         } else {
-            statusBadge.innerHTML = '<span style="font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:#eaf4dd;color:#3b5136;">✓ Aktif</span>';
+            statusBadge.innerHTML = '<span style="font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:#eaf4dd;color:#3b5136;">Aktif</span>';
         }
-
-        // Storage
-        const usedGb = parseFloat(d.storage_used_gb);
-        const quotaGb = parseInt(d.storage_quota_gb);
-        const pct = Math.min(d.storage_used_pct, 100);
-        const barColor = pct > 90 ? '#dc2626' : pct > 70 ? '#d97706' : 'linear-gradient(90deg,var(--cp-primary-start),var(--cp-primary-end))';
-
-        document.getElementById('stat-storage').innerText = usedGb.toFixed(2) + ' / ' + quotaGb + ' GB';
-        document.getElementById('storage-label').innerText = usedGb.toFixed(2) + ' / ' + quotaGb + ' GB';
-        document.getElementById('stat-storage-bar').style.width = pct + '%';
-        document.getElementById('stat-storage-bar').style.background = barColor;
-        document.getElementById('storage-bar-main').style.width = pct + '%';
-        document.getElementById('storage-bar-main').style.background = typeof barColor === 'string' && barColor.startsWith('#') ? barColor : '';
-        document.getElementById('storage-plan-badge').innerText = 'Paket: ' + d.storage_plan_label;
-        document.getElementById('storage-expires').innerText = d.storage_plan_expires_at ? 'Berlaku hingga ' + d.storage_plan_expires_at : '';
-        document.getElementById('storage-full-warning').style.display = pct >= 100 ? 'block' : 'none';
     }
 
     async function loadInstances() {
@@ -231,19 +216,18 @@
         if (!res.ok) return;
         const items = await res.json();
         const running = items.filter(i => i.status === 'RUNNING');
-        
+
         document.getElementById('stat-instances').innerText = running.length + ' instance';
-        
-        // Kalkulasi Estimasi Harga (Compute + Block Volume)
+
         const computeCost = running.reduce((s, i) => s + parseFloat(i.metadata?.price_per_hour || 0), 0);
         const totalCost = computeCost + volumeHourlyCost;
 
-        let activeItemsDesc = [];
-        if(running.length > 0) activeItemsDesc.push(running.length + ' instance');
-        if(volumeHourlyCost > 0) activeItemsDesc.push('block storage');
+        let parts = [];
+        if (running.length > 0) parts.push(running.length + ' instance');
+        if (volumeHourlyCost > 0) parts.push('block storage');
 
         document.getElementById('cost-estimate').innerText = totalCost > 0 ?
-            'Rp ' + totalCost.toLocaleString('id-ID') + '/jam (' + activeItemsDesc.join(' & ') + ')' :
+            'Rp ' + totalCost.toLocaleString('id-ID') + '/jam (' + parts.join(' + ') + ')' :
             'Tidak ada resource berbayar yang aktif';
     }
 
@@ -292,19 +276,18 @@
             const data = await res.json();
             if (data.success) {
                 msg.style.color = '#3b5136';
-                msg.innerText = '✓ Top-up berhasil! Saldo: Rp ' + parseFloat(data.balance).toLocaleString('id-ID');
+                msg.innerText = 'Top-up berhasil! Saldo: Rp ' + parseFloat(data.balance).toLocaleString('id-ID');
                 document.getElementById('topup-amount').value = '';
                 loadSummary(); loadHistory();
             } else {
-                msg.style.color = '#9b2c2c'; msg.innerText = '✗ ' + (data.error || 'Gagal');
+                msg.style.color = '#9b2c2c'; msg.innerText = (data.error || 'Gagal');
             }
         } catch (e) {
-            msg.style.color = '#9b2c2c'; msg.innerText = '✗ Terjadi kesalahan.';
+            msg.style.color = '#9b2c2c'; msg.innerText = 'Terjadi kesalahan.';
         }
         msg.style.display = 'block'; btn.disabled = false; btn.innerText = 'Top-up';
     }
 
-    // Init
     loadSummary();
     loadInstances();
     loadHistory();

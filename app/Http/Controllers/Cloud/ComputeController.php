@@ -16,7 +16,6 @@ class ComputeController extends Controller
         $this->service = $service;
     }
 
-    // GET /cloud/api/instances
     public function index(Request $request)
     {
         $user = $request->user();
@@ -28,7 +27,6 @@ class ComputeController extends Controller
         return response()->json($items);
     }
 
-    // POST /cloud/api/instances
     public function store(Request $request)
     {
         $request->validate([
@@ -37,7 +35,15 @@ class ComputeController extends Controller
             'os'   => 'nullable|string|in:ubuntu-22.04,ubuntu-20.04,debian-12,alpine',
         ]);
 
-        $instance = $this->service->createInstance($request->user(), $request->plan, [
+        $user = $request->user();
+
+        if (!$user->canUsePlan($request->plan)) {
+            return response()->json([
+                'error' => 'Plan "' . $request->plan . '" tidak tersedia di membership ' . $user->membershipLabel() . '. Upgrade membership untuk menggunakan plan ini.',
+            ], 403);
+        }
+
+        $instance = $this->service->createInstance($user, $request->plan, [
             'type' => $request->input('type', ComputeService::DEFAULT_TYPE),
             'os'   => $request->input('os',   ComputeService::DEFAULT_OS),
         ]);
@@ -45,7 +51,6 @@ class ComputeController extends Controller
         return response()->json($instance, 201);
     }
 
-    // POST /cloud/api/instances/{id}/action
     public function action(Request $request, $id)
     {
         $request->validate(['action' => 'required|string|in:start,stop,restart,terminate,archive,restore,purge']);
@@ -72,31 +77,31 @@ class ComputeController extends Controller
         return response()->json($instance->refresh());
     }
 
-    // GET /cloud/api/instances/{id}/stats
     public function stats(Request $request, $id)
     {
         $instance = ComputeInstance::where('id', $id)->where('user_id', $request->user()->id)->firstOrFail();
         return response()->json($this->service->getStats($instance));
     }
 
-    // GET /cloud/api/instances/{id}/log
     public function log(Request $request, $id)
     {
         $instance = ComputeInstance::withTrashed()->where('id', $id)->where('user_id', $request->user()->id)->firstOrFail();
         return response()->json(['log' => $instance->provision_log, 'status' => $instance->status]);
     }
 
-    // GET /cloud/api/plans
-    public function plans()
+    public function plans(Request $request)
     {
+        $user = $request->user();
+
         return response()->json([
-            'plans'  => ComputeService::PLANS,
-            'types'  => ComputeService::TYPES,
-            'images' => ComputeService::IMAGES,
+            'plans'          => ComputeService::PLANS,
+            'types'          => ComputeService::TYPES,
+            'images'         => ComputeService::IMAGES,
+            'allowed_plans'  => $user ? $user->allowedComputePlans() : ['nano', 'micro', 'small'],
+            'membership'     => $user ? $user->storage_plan ?? 'free' : 'free',
         ]);
     }
 
-    // GET /cloud/api/usage/export (admin)
     public function exportUsage(Request $request)
     {
         $rows     = ComputeInstance::with('user')->orderByDesc('created_at')->get();

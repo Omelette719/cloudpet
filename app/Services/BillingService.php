@@ -28,7 +28,6 @@ class BillingService
             $user->increment('balance', $amount);
             $user->refresh();
 
-            // Kalau user di-suspend karena saldo habis, aktifkan lagi
             if ($user->account_status === 'SUSPENDED' && $user->balance > 0) {
                 $user->account_status = 'ACTIVE';
                 $user->save();
@@ -50,7 +49,6 @@ class BillingService
 
     public function runHourlyTick(): void
     {
-        // Proses semua user yang punya instance RUNNING
         $userIds = ComputeInstance::where('status', 'RUNNING')
             ->distinct()
             ->pluck('user_id');
@@ -78,7 +76,6 @@ class BillingService
             $newBalance = (float) $user->balance - $totalCost;
 
             if ($newBalance < 0) {
-                // Saldo tidak cukup — stop semua instance, suspend akun
                 foreach ($instances as $instance) {
                     $this->compute->changeStatus($instance, 'stop');
                 }
@@ -99,7 +96,6 @@ class BillingService
             $user->balance = $newBalance;
             $user->save();
 
-            // Update usage_hours dan cost per instance
             foreach ($instances as $instance) {
                 $instance->usage_hours    = ($instance->usage_hours ?? 0) + 1;
                 $instance->cost           = ($instance->cost ?? 0) + ($instance->price_per_hour ?? 0);
@@ -117,24 +113,29 @@ class BillingService
         });
     }
 
-    // ─── Langganan storage ────────────────────────────────────────────────────
+    // ─── Langganan membership ────────────────────────────────────────────────
 
     public function subscribeStorage(User $user, string $plan): void
     {
-        $plans = User::STORAGE_PLANS;
+        $plans = User::MEMBERSHIP_PLANS;
         if (!isset($plans[$plan])) throw new \InvalidArgumentException('Paket tidak valid.');
 
-        $planConf    = $plans[$plan];
-        $priceMonth  = $planConf['price_month'];
-        $quotaGb     = $planConf['quota_gb'];
+        $planConf   = $plans[$plan];
+        $priceMonth = $planConf['price_month'];
 
         if ($plan === 'free') {
-            // Downgrade ke free — cek apakah usage masih dalam batas
-            if ($user->storage_used_gb > 30) {
-                throw new \RuntimeException('Hapus beberapa instance/file dulu sebelum downgrade ke paket gratis (30 GB).');
+            if ($user->volumeUsedGb() > $planConf['volume_limit_gb']) {
+                throw new \RuntimeException(
+                    'Total block storage Anda (' . $user->volumeUsedGb() . ' GB) melebihi batas paket Gratis (' . $planConf['volume_limit_gb'] . ' GB). Hapus beberapa volume terlebih dahulu.'
+                );
             }
-            $user->storage_plan           = 'free';
-            $user->storage_quota_gb       = 30;
+            if ($user->storageBuckets()->count() > $planConf['max_buckets']) {
+                throw new \RuntimeException(
+                    'Jumlah bucket Anda melebihi batas paket Gratis (' . $planConf['max_buckets'] . ' bucket). Hapus beberapa bucket terlebih dahulu.'
+                );
+            }
+            $user->storage_plan            = 'free';
+            $user->storage_quota_gb        = $planConf['volume_limit_gb'];
             $user->storage_plan_expires_at = null;
             $user->save();
             return;
@@ -144,10 +145,10 @@ class BillingService
             throw new \RuntimeException('Saldo tidak cukup. Dibutuhkan Rp ' . number_format($priceMonth, 0, ',', '.'));
         }
 
-        DB::transaction(function () use ($user, $plan, $planConf, $priceMonth, $quotaGb) {
+        DB::transaction(function () use ($user, $plan, $planConf, $priceMonth) {
             $user->decrement('balance', $priceMonth);
             $user->storage_plan            = $plan;
-            $user->storage_quota_gb        = $quotaGb;
+            $user->storage_quota_gb        = $planConf['volume_limit_gb'];
             $user->storage_plan_expires_at = now()->addMonth();
             $user->save();
 
@@ -156,55 +157,9 @@ class BillingService
                 'user_id'          => $user->id,
                 'amount'           => -$priceMonth,
                 'transaction_type' => 'MONTHLY_BILLING',
-                'description'      => 'Langganan storage ' . $planConf['label'] . ' (' . $quotaGb . ' GB)',
+                'description'      => 'Langganan membership ' . $planConf['label'],
             ]);
         });
-    }
-
-    // ─── Sync storage usage ───────────────────────────────────────────────────
-
-    public function syncStorageUsage(User $user): float
-    {
-        $instances = ComputeInstance::where('user_id', $user->id)
-            ->whereNotIn('status', ['TERMINATED'])
-            ->whereNotNull('metadata')
-            ->get();
-
-        $totalBytes = 0;
-        foreach ($instances as $instance) {
-            $path = $instance->metadata['storage_path'] ?? null;
-            if ($path && is_dir($path)) {
-                $totalBytes += $this->dirSize($path);
-            }
-        }
-
-        $totalGb = round($totalBytes / (1024 ** 3), 3);
-        $user->storage_used_gb = $totalGb;
-        $user->save();
-
-        // Kalau storage penuh, stop semua instance
-        if ($user->isStorageFull()) {
-            $running = ComputeInstance::where('user_id', $user->id)
-                ->where('status', 'RUNNING')
-                ->get();
-            foreach ($running as $instance) {
-                $this->compute->changeStatus($instance, 'stop');
-            }
-        }
-
-        return $totalGb;
-    }
-
-    protected function dirSize(string $path): int
-    {
-        $size = 0;
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS)
-        );
-        foreach ($iterator as $file) {
-            if ($file->isFile()) $size += $file->getSize();
-        }
-        return $size;
     }
 
     // ─── Riwayat transaksi ────────────────────────────────────────────────────

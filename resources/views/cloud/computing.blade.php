@@ -198,6 +198,33 @@
 
 <script>
 (function () {
+    const _timers = [];
+    const _intervals = [];
+    let _destroyed = false;
+
+    function safeSetInterval(fn, ms) {
+        const id = setInterval(fn, ms);
+        _intervals.push(id);
+        return id;
+    }
+    function safeClearInterval(id) {
+        clearInterval(id);
+        const idx = _intervals.indexOf(id);
+        if (idx !== -1) _intervals.splice(idx, 1);
+    }
+    function safeSetTimeout(fn, ms) {
+        const id = setTimeout(fn, ms);
+        _timers.push(id);
+        return id;
+    }
+
+    document.addEventListener('livewire:navigating', function cleanup() {
+        _destroyed = true;
+        _intervals.forEach(clearInterval);
+        _timers.forEach(clearTimeout);
+        document.removeEventListener('livewire:navigating', cleanup);
+    });
+
     const CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     const API = {
         plans:  () => fetch('/cloud/api/plans').then(r => r.json()),
@@ -222,14 +249,22 @@
         notebook: { icon: '📓', label: 'Notebook',         color: '#1e1a2e', text: '#c8a5f0' },
     };
 
-    let plans = {}, selectedPlan = null, selectedType = null, selectedOs = 'ubuntu-22.04', currentTab = 'active';
+    let plans = {}, allowedPlans = [], selectedPlan = null, selectedType = null, selectedOs = 'ubuntu-22.04', currentTab = 'active';
 
     // ── Load plans ─────────────────────────────────────────────────────────
     API.plans().then(data => {
         plans = data.plans || {};
+        allowedPlans = data.allowed_plans || Object.keys(plans);
         Object.entries(plans).forEach(([key, p]) => {
             const el = document.getElementById('plan-spec-' + key);
             if (el) el.innerText = p.cpu + 'C · ' + (p.memory >= 1024 ? (p.memory/1024)+'GB' : p.memory+'MB');
+            const btn = document.querySelector(`.plan-btn[data-plan="${key}"]`);
+            if (btn && !allowedPlans.includes(key)) {
+                btn.disabled = true;
+                btn.style.opacity = '0.45';
+                btn.style.cursor = 'not-allowed';
+                btn.insertAdjacentHTML('beforeend', '<div style="font-size:0.58rem;color:#9b2c2c;margin-top:3px;font-weight:700;">🔒 Upgrade</div>');
+            }
         });
     });
 
@@ -260,6 +295,7 @@
     // ── Plan selector ──────────────────────────────────────────────────────
     document.querySelectorAll('.plan-btn').forEach(btn => {
         btn.addEventListener('click', () => {
+            if (!allowedPlans.includes(btn.dataset.plan)) return;
             selectedPlan = btn.dataset.plan;
             document.querySelectorAll('.plan-btn').forEach(b => {
                 b.style.background = '#fff'; b.style.borderColor = 'var(--cp-soft-border)';
@@ -319,18 +355,19 @@
         chipEl.innerText = 'PROVISIONING';
         chipEl.style.cssText = 'font-size:0.68rem;font-weight:700;padding:3px 9px;border-radius:999px;background:#fef3c7;color:#92400e;';
 
-        const poll = setInterval(async () => {
+        const poll = safeSetInterval(async () => {
+            if (_destroyed) { safeClearInterval(poll); return; }
             let data; try { data = await API.log(instanceId); } catch(e) { return; }
             termEl.innerText = data.log || ''; termEl.scrollTop = termEl.scrollHeight;
             if (data.status === 'RUNNING') {
-                clearInterval(poll);
+                safeClearInterval(poll);
                 chipEl.innerText = 'RUNNING';
                 chipEl.style.cssText = 'font-size:0.68rem;font-weight:700;padding:3px 9px;border-radius:999px;background:#eaf4dd;color:#3b5136;';
                 showToast('Instance berhasil dibuat & berjalan 🎉');
                 refresh();
-                setTimeout(() => { provPanel.style.display = 'none'; guidePanel.style.display = 'block'; }, 3000);
+                safeSetTimeout(() => { provPanel.style.display = 'none'; guidePanel.style.display = 'block'; }, 3000);
             } else if (data.status === 'FAILED') {
-                clearInterval(poll);
+                safeClearInterval(poll);
                 chipEl.innerText = 'FAILED';
                 chipEl.style.cssText = 'font-size:0.68rem;font-weight:700;padding:3px 9px;border-radius:999px;background:#fde8e8;color:#9b2c2c;';
                 resultEl.style.display = 'block';
@@ -535,7 +572,9 @@
     }
 
     async function refresh() {
+        if (_destroyed) return;
         const items = await API.list(currentTab === 'archived');
+        if (_destroyed) return;
         renderItems(items);
         // Poll stats untuk semua instance RUNNING
         if (currentTab === 'active') {
@@ -553,13 +592,13 @@
         _statPolls.add(instanceId);
 
         async function fetchAndUpdate() {
-            // Cek apakah card masih ada di DOM
+            if (_destroyed) { _statPolls.delete(instanceId); return; }
             const cpuEl = document.getElementById('stat-cpu-' + instanceId);
             const ramEl = document.getElementById('stat-ram-' + instanceId);
             if (!cpuEl || !ramEl) { _statPolls.delete(instanceId); return; }
 
             const data = await API.stats(instanceId);
-            if (!data || data.error) { setTimeout(fetchAndUpdate, 6000); return; }
+            if (!data || data.error) { safeSetTimeout(fetchAndUpdate, 6000); return; }
 
             // CPU
             const cpuPct = parseFloat(data.cpu_perc) || 0;
@@ -579,11 +618,10 @@
                 const barDisk = document.getElementById('bar-disk-' + instanceId);
                 if (diskEl)  diskEl.innerText = data.disk_used || '—';
                 if (barDisk) barDisk.style.width = Math.min(parseFloat(data.disk_pct) || 0, 100) + '%';
-                // Warna merah kalau disk > 90%
                 if (barDisk && parseFloat(data.disk_pct) > 90) barDisk.style.background = '#dc2626';
             }
 
-            setTimeout(fetchAndUpdate, 5000);
+            safeSetTimeout(fetchAndUpdate, 5000);
         }
 
         fetchAndUpdate();
@@ -667,15 +705,16 @@
     // ── Toast ──────────────────────────────────────────────────────────────
     function showToast(msg) {
         const c = document.getElementById('cp-toast-container');
+        if (!c) return;
         const t = document.createElement('div');
         t.style.cssText = 'pointer-events:auto;background:linear-gradient(90deg,#3b5136,#4a6344);color:#eef6e8;padding:10px 16px;border-radius:0.85rem;font-weight:700;font-size:0.875rem;box-shadow:0 6px 18px rgba(34,48,31,0.22);';
         t.innerText = msg; c.appendChild(t);
-        setTimeout(() => { t.style.transition = 'opacity 300ms'; t.style.opacity = '0'; setTimeout(() => t.remove(), 350); }, 3500);
+        safeSetTimeout(() => { t.style.transition = 'opacity 300ms'; t.style.opacity = '0'; safeSetTimeout(() => t.remove(), 350); }, 3500);
     }
 
     // ── Init ───────────────────────────────────────────────────────────────
     refresh();
-    setInterval(refresh, 5000);
+    safeSetInterval(() => { if (!_destroyed) refresh(); }, 5000);
 })();
 </script>
 

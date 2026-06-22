@@ -8,6 +8,7 @@ use App\Services\BillingService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class BillingTick extends Command
 {
@@ -38,12 +39,12 @@ class BillingTick extends Command
                         if ($user->balance >= $costPerHour) {
                             $user->decrement('balance', $costPerHour);
 
-                            // Jika menggunakan HasUuids di Model, tidak perlu set 'id' secara manual
                             BillingTransaction::create([
+                                'id'               => (string) Str::uuid(),
                                 'user_id'          => $user->id,
                                 'amount'           => -$costPerHour,
                                 'transaction_type' => 'HOURLY_USAGE',
-                                'description'      => "Biaya sewa Block Volume ({$volume->volume_name} - {$volume->size_gb}GB) per jam.",
+                                'description'      => "Block Volume: {$volume->volume_name} ({$volume->size_gb}GB)",
                             ]);
                         } else {
                             $user->update(['account_status' => 'SUSPENDED']);
