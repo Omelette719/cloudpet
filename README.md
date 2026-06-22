@@ -27,7 +27,7 @@ CloudPet adalah platform cloud computing berbasis web yang memungkinkan pengguna
 +------------------------+----------------------------+
                          |
 +------------------------v----------------------------+
-|             Laravel Application (Herd)               |
+|              Laravel Application                      |
 |  +----------+ +----------+ +----------+             |
 |  | Livewire | |  Blade   | | REST API |             |
 |  +----------+ +----------+ +----------+             |
@@ -39,7 +39,7 @@ CloudPet adalah platform cloud computing berbasis web yang memungkinkan pengguna
 +-------+-------------+-------------+-----------------+
         |              |              |
 +-------v------+ +----v------+ +-----v------+
-|   Docker     | | MiniStack | |  SQLite    |
+|   Docker     | | MiniStack | |   MySQL    |
 |  Containers  | | (port     | |  Database  |
 |  VM/IDE/NB   | |  4566)    | |            |
 |  Database    | |  EC2+S3   | |            |
@@ -50,10 +50,10 @@ CloudPet adalah platform cloud computing berbasis web yang memungkinkan pengguna
 
 | Komponen | Fungsi |
 |----------|--------|
-| **Laravel + Herd** | Web framework, berjalan di Windows via Laravel Herd |
+| **Laravel** | Web framework PHP |
 | **Docker Desktop** | Menjalankan container untuk VM, IDE, Notebook, Database |
 | **MiniStack (LocalStack)** | Emulator AWS di port 4566: API EC2 (control plane volume) dan S3 (object storage) |
-| **SQLite** | Database aplikasi (users, billing, instances, dll) |
+| **MySQL** | Database aplikasi (users, billing, instances, dll) |
 
 ### Alur Kerja
 
@@ -70,11 +70,11 @@ CloudPet adalah platform cloud computing berbasis web yang memungkinkan pengguna
 
 | Software | Versi | Keterangan |
 |----------|-------|------------|
-| **PHP** | >= 8.3 | Termasuk extension: pdo_sqlite, pdo_mysql, pdo_pgsql, curl |
+| **PHP** | >= 8.3 | Termasuk extension: pdo_mysql, pdo_pgsql, curl |
+| **MySQL** | >= 8.0 | Database server (bisa pakai XAMPP, Laragon, atau Herd built-in) |
 | **Composer** | >= 2.x | PHP dependency manager |
 | **Node.js** | >= 18 | Untuk build frontend (Vite + Tailwind) |
 | **Docker Desktop** | Latest | Harus running sebelum menggunakan fitur cloud |
-| **Laravel Herd** | Latest (opsional) | Local development server untuk Windows/Mac |
 | **Git** | Latest | Version control |
 
 ---
@@ -98,6 +98,11 @@ php artisan key:generate
 ```
 
 Edit `.env` sesuai kebutuhan (lihat [Konfigurasi Environment](#konfigurasi-environment)).
+
+Buat database MySQL:
+```sql
+CREATE DATABASE cloudpet;
+```
 
 ### 3. Setup Database
 
@@ -137,10 +142,6 @@ Ini menjalankan:
 
 ### 6. Jalankan Aplikasi
 
-**Dengan Laravel Herd:**
-Herd otomatis mendeteksi project. Buka `http://cloudpet.test`
-
-**Tanpa Herd:**
 ```bash
 php artisan serve
 ```
@@ -161,9 +162,14 @@ File `.env` yang perlu disesuaikan:
 
 ```env
 APP_NAME=CloudPet
-APP_URL=http://cloudpet.test
+APP_URL=http://localhost
 
-DB_CONNECTION=sqlite
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=cloudpet
+DB_USERNAME=root
+DB_PASSWORD=
 
 QUEUE_CONNECTION=database
 
@@ -203,26 +209,36 @@ COMPUTE_FORCE_LOCAL_RUNTIME=true
 
 ## Infrastruktur MiniStack
 
-MiniStack (berbasis LocalStack) adalah emulator AWS lokal yang berjalan di Docker port 4566.
+MiniStack (berbasis LocalStack) adalah emulator AWS lokal yang berjalan di Docker port 4566. Semua layanan CloudPet menggunakan MiniStack sebagai **control plane** melalui AWS SDK PHP.
 
-### Control Plane — EC2 API (Block Storage)
+### EC2 API — Compute Instance + Block Storage
 
 ```
-Laravel --EC2Client--> MiniStack:4566
+Laravel --Ec2Client--> MiniStack:4566
                          |
-                  CreateVolume / DeleteVolume
-                  AttachVolume / DetachVolume
+    Compute:  RunInstances / StopInstances / StartInstances / TerminateInstances
+    Volume:   CreateVolume / DeleteVolume / AttachVolume / DetachVolume
 ```
 
-CloudPet memanggil EC2 API standar via AWS SDK PHP untuk mencatat lifecycle volume. Data plane sebenarnya menggunakan Docker named volume (`cp_vol_{id}`).
+- **Compute**: EC2 API mencatat lifecycle instance. Data plane menggunakan Docker container (VM/IDE/Notebook).
+- **Block Storage**: EC2 API mencatat lifecycle volume. Data plane menggunakan Docker named volume (`cp_vol_{id}`).
 
-### Data Plane — S3 API (Object Storage)
+### RDS API — Managed Database
+
+```
+Laravel --RdsClient--> MiniStack:4566
+                         |
+    CreateDBInstance / DeleteDBInstance / StopDBInstance / StartDBInstance
+```
+
+RDS API mencatat lifecycle database. Data plane menggunakan Docker container (PostgreSQL/MySQL/MariaDB).
+
+### S3 API — Object Storage
 
 ```
 Laravel --S3Client--> MiniStack:4566
                          |
-                  CreateBucket / PutObject
-                  GetObject / DeleteObject
+    CreateBucket / PutObject / GetObject / DeleteObject
 ```
 
 Bucket S3 menyimpan file user secara nyata. Setiap user mendapat bucket dengan access key dan secret key unik.
@@ -515,6 +531,6 @@ Setelah `php artisan db:seed`:
 |-------|-----------|
 | Backend | Laravel 13, PHP 8.3, Livewire 4 |
 | Frontend | Blade, Tailwind CSS 4, Vite 8 |
-| Database | SQLite (dev), MySQL/PostgreSQL (production) |
-| Infrastructure | Docker Desktop, MiniStack (LocalStack), AWS SDK PHP |
+| Database | MySQL 8 |
+| Infrastructure | Docker Desktop, MiniStack (LocalStack), AWS SDK PHP (EC2 + RDS + S3) |
 | Authentication | Laravel Fortify + 2FA |

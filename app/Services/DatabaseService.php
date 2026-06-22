@@ -118,15 +118,16 @@ class DatabaseService
         $this->appendLog($database, "[4/4] Menunggu database siap...");
         $this->waitForPort($mappedPort, 40);
 
-        // RDS control plane (best effort)
+        // RDS control plane: register di MiniStack
+        $rdsId = 'cpdb-' . substr($database->id, 0, 8);
         try {
-            $rds = MiniStackService::getEc2Client(); // reuse the endpoint
-            // LocalStack RDS is limited, just register for tracking
-            $rdsId = 'cpdb-' . substr($database->id, 0, 8);
-            $database->rds_identifier = $rdsId;
+            $miniStack = app(MiniStackService::class);
+            $miniStack->createDBInstance($rdsId, $database->engine, $database->db_name, $database->db_user, $database->db_password);
+            $this->appendLog($database, "  RDS Instance registered: {$rdsId}");
         } catch (\Throwable $e) {
-            // non-fatal
+            \Illuminate\Support\Facades\Log::warning("RDS CreateDBInstance skip: {$e->getMessage()}");
         }
+        $database->rds_identifier = $rdsId;
 
         $database->update([
             'host'           => '127.0.0.1',
@@ -165,12 +166,16 @@ class DatabaseService
 
         if (!$containerName) throw new Exception('Container tidak ditemukan.');
 
+        $rdsId     = $database->rds_identifier;
+        $miniStack = app(MiniStackService::class);
+
         switch ($action) {
             case 'start':
                 exec('docker start ' . escapeshellarg($containerName) . ' 2>&1', $out, $rc);
                 if ($rc === 0) {
                     $database->status     = 'RUNNING';
                     $database->started_at = now();
+                    if ($rdsId) { try { $miniStack->startDBInstance($rdsId); } catch (\Exception $e) {} }
                 }
                 break;
 
@@ -180,12 +185,14 @@ class DatabaseService
                     $database->status     = 'STOPPED';
                     $database->stopped_at = now();
                     $this->computeUsage($database);
+                    if ($rdsId) { try { $miniStack->stopDBInstance($rdsId); } catch (\Exception $e) {} }
                 }
                 break;
 
             case 'terminate':
                 exec('docker stop ' . escapeshellarg($containerName) . ' 2>&1');
                 exec('docker rm -f ' . escapeshellarg($containerName) . ' 2>&1');
+                if ($rdsId) { try { $miniStack->deleteDBInstance($rdsId); } catch (\Exception $e) {} }
                 $database->status     = 'TERMINATED';
                 $database->stopped_at = now();
                 $this->computeUsage($database);

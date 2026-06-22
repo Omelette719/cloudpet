@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BlockVolume;
 use App\Models\ComputeInstance;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class ComputeService
@@ -208,6 +209,17 @@ class ComputeService
         else          { $appendLog('Peringatan: web terminal gagal. SSH manual tetap tersedia.'); $wettyPort = null; }
 
         $containerIp = $this->getContainerIp($containerName, $networkName);
+
+        // EC2 control plane: register instance di MiniStack
+        $ec2InstanceId = null;
+        try {
+            $miniStack = app(MiniStackService::class);
+            $ec2InstanceId = $miniStack->runInstance($containerName);
+            $appendLog('EC2 Instance registered: ' . $ec2InstanceId);
+        } catch (\Exception $e) {
+            Log::warning("EC2 RunInstances skip: {$e->getMessage()}");
+        }
+
         $appendLog('✅ VM siap! SSH port: ' . $sshPort . ($wettyPort ? ' | Web terminal: ' . $wettyPort : ''));
 
         $volumeId = $instance->metadata['volume_id'] ?? null;
@@ -219,6 +231,7 @@ class ComputeService
         $instance->price_per_hour = $price;
         $instance->metadata       = [
             'type'            => 'vm',
+            'ec2_instance_id' => $ec2InstanceId,
             'container_id'    => $containerId,
             'container_name'  => $containerName,
             'wetty_container' => $wettyOk ? $wettyName : null,
@@ -299,6 +312,13 @@ class ComputeService
         $appendLog('Container IDE siap (' . substr($containerId, 0, 12) . '). Menunggu server siap...');
         $this->waitForPort($idePort, 30);
 
+        // EC2 control plane
+        $ec2InstanceId = null;
+        try {
+            $ec2InstanceId = app(MiniStackService::class)->runInstance($containerName);
+            $appendLog('EC2 Instance registered: ' . $ec2InstanceId);
+        } catch (\Exception $e) { Log::warning("EC2 RunInstances skip: {$e->getMessage()}"); }
+
         $appendLog('✅ Cloud IDE siap! Buka di: http://localhost:' . $idePort);
 
         $volumeId = $instance->metadata['volume_id'] ?? null;
@@ -309,6 +329,7 @@ class ComputeService
         $instance->price_per_hour = $price;
         $instance->metadata       = [
             'type'           => 'ide',
+            'ec2_instance_id'=> $ec2InstanceId,
             'container_id'   => $containerId,
             'container_name' => $containerName,
             'network'        => $networkName,
@@ -384,6 +405,13 @@ class ComputeService
         $appendLog('Container Jupyter siap (' . substr($containerId, 0, 12) . '). Menunggu server siap...');
         $this->waitForPort($nbPort, 30);
 
+        // EC2 control plane
+        $ec2InstanceId = null;
+        try {
+            $ec2InstanceId = app(MiniStackService::class)->runInstance($containerName);
+            $appendLog('EC2 Instance registered: ' . $ec2InstanceId);
+        } catch (\Exception $e) { Log::warning("EC2 RunInstances skip: {$e->getMessage()}"); }
+
         $appendLog('✅ Jupyter Notebook siap! Buka di: http://localhost:' . $nbPort . '/?token=' . $nbToken);
 
         $volumeId = $instance->metadata['volume_id'] ?? null;
@@ -394,6 +422,7 @@ class ComputeService
         $instance->price_per_hour = $price;
         $instance->metadata       = [
             'type'           => 'notebook',
+            'ec2_instance_id'=> $ec2InstanceId,
             'container_id'   => $containerId,
             'container_name' => $containerName,
             'network'        => $networkName,
@@ -424,7 +453,9 @@ class ComputeService
 
         if (!$target) return $this->simulateAction($instance, $action);
 
-        $companions = array_filter([$wettyContainer]);
+        $companions    = array_filter([$wettyContainer]);
+        $ec2InstanceId = $meta['ec2_instance_id'] ?? null;
+        $miniStack     = app(MiniStackService::class);
 
         switch ($action) {
             case 'start':
@@ -432,6 +463,7 @@ class ComputeService
                 if ($rc === 0) {
                     $instance->status = 'RUNNING'; $instance->started_at = now();
                     foreach ($companions as $c) exec('docker start ' . escapeshellarg($c) . ' 2>&1');
+                    if ($ec2InstanceId) { try { $miniStack->startInstance($ec2InstanceId); } catch (\Exception $e) {} }
                 } else logger()->error('docker start failed: ' . implode(' ', $out));
                 break;
 
@@ -441,6 +473,7 @@ class ComputeService
                     $instance->status = 'STOPPED'; $instance->stopped_at = now();
                     $this->computeUsageAndCost($instance);
                     foreach ($companions as $c) exec('docker stop ' . escapeshellarg($c) . ' 2>&1');
+                    if ($ec2InstanceId) { try { $miniStack->stopInstance($ec2InstanceId); } catch (\Exception $e) {} }
                 } else logger()->error('docker stop failed: ' . implode(' ', $out));
                 break;
 
@@ -459,6 +492,7 @@ class ComputeService
                     exec('docker stop ' . escapeshellarg($c) . ' 2>&1');
                     exec('docker rm -f ' . escapeshellarg($c) . ' 2>&1');
                 }
+                if ($ec2InstanceId) { try { $miniStack->terminateInstance($ec2InstanceId); } catch (\Exception $e) {} }
                 $instance->status = 'TERMINATED'; $instance->stopped_at = now();
                 $this->computeUsageAndCost($instance);
                 $this->detachVolumeFromInstance($instance);

@@ -1,35 +1,15 @@
-version: "3.8"
-
 services:
   ministack:
-    image: ministackorg/ministack:latest
-    container_name: ministack_iaas
+    image: localstack/localstack
+    container_name: ministack
     restart: unless-stopped
     ports:
       - "4566:4566"
-      - "15432:15432"
-      - "16379:16379"
     environment:
-      - MINISTACK_LOG_LEVEL=info
+      - SERVICES=ec2,s3,rds
+      - DEBUG=0
     volumes:
-      - ./ministack_data:/tmp/ministack
+      - ministack_data:/var/lib/localstack
 
-  jupyter:
-    image: jupyter/minimal-notebook:latest
-    restart: unless-stopped
-    ports:
-      - "28171:8888"
-    environment:
-      JUPYTER_TOKEN: d3816299e87b6aba229af302
-    volumes:
-      - ./notebooks:/home/jovyan/work
-
-  code-server:
-    image: codercom/code-server:latest
-    restart: unless-stopped
-    ports:
-      - "29670:8080"
-    environment:
-      PASSWORD: 3a44037ee2b09ec3
-    volumes:
-      - ./code:/home/coder/project
+volumes:
+  ministack_data:
