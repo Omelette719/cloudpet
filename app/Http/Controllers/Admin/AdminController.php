@@ -221,13 +221,14 @@ class AdminController extends Controller
         }
 
         $users = $query->orderByDesc('created_at')->paginate(15);
+        $users->getCollection()->transform(fn($u) => $u->makeVisible('role'));
 
         return response()->json($users);
     }
 
     public function userShow($id)
     {
-        $user = User::findOrFail($id);
+        $user = User::findOrFail($id)->makeVisible('role');
 
         return response()->json([
             'user'         => $user,
