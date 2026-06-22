@@ -7,6 +7,7 @@ use App\Livewire\Dashboard\UserDashboard;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Cloud\ComputeController;
+use App\Http\Controllers\Cloud\DatabaseController;
 use App\Livewire\Bucket\BucketManager;
 
 Route::get('/', fn() => redirect()->route('login'));
@@ -48,6 +49,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/cloud/computing', function () {
             return view('cloud.computing');
         })->name('cloud.computing');
+
+        Route::get('/cloud/database', function () {
+            return view('cloud.database');
+        })->name('cloud.database');
     });
 
     // Cloud API
@@ -77,6 +82,18 @@ Route::middleware('auth')->group(function () {
         Route::get('/usage/export', [ComputeController::class, 'exportUsage'])
             ->middleware('role:admin')
             ->name('cloud.api.usage.export');
+
+        // Databases
+        Route::get('/databases',                  [DatabaseController::class, 'index'])->name('cloud.api.databases');
+        Route::post('/databases',                 [DatabaseController::class, 'store'])->name('cloud.api.databases.store');
+        Route::post('/databases/{id}/action',     [DatabaseController::class, 'action'])->name('cloud.api.databases.action');
+        Route::get('/databases/{id}/log',         [DatabaseController::class, 'log'])->name('cloud.api.databases.log');
+        Route::delete('/databases/{id}',          [DatabaseController::class, 'destroy'])->name('cloud.api.databases.destroy');
+        Route::get('/databases/{id}/connection',  [DatabaseController::class, 'connectionInfo'])->name('cloud.api.databases.connection');
+        Route::get('/databases/{id}/tables',      [DatabaseController::class, 'tables'])->name('cloud.api.databases.tables');
+        Route::get('/databases/{id}/tables/{table}', [DatabaseController::class, 'tableRows'])->name('cloud.api.databases.table.rows');
+        Route::post('/databases/{id}/query',      [DatabaseController::class, 'executeQuery'])->name('cloud.api.databases.query');
+        Route::get('/plans/database',             [DatabaseController::class, 'plans'])->name('cloud.api.plans.database');
     });
 
     Route::get('/cloud/volumes', function () {

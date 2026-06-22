@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\BillingTransaction;
+use App\Models\ManagedDatabase;
 use Illuminate\Support\Facades\DB;
 use App\Models\ComputeInstance;
 use App\Models\User;
@@ -49,9 +50,9 @@ class BillingService
 
     public function runHourlyTick(): void
     {
-        $userIds = ComputeInstance::where('status', 'RUNNING')
-            ->distinct()
-            ->pluck('user_id');
+        $computeUserIds = ComputeInstance::where('status', 'RUNNING')->distinct()->pluck('user_id');
+        $dbUserIds      = ManagedDatabase::where('status', 'RUNNING')->distinct()->pluck('user_id');
+        $userIds        = $computeUserIds->merge($dbUserIds)->unique();
 
         foreach ($userIds as $userId) {
             $user = User::find($userId);
@@ -66,29 +67,39 @@ class BillingService
             ->where('status', 'RUNNING')
             ->get();
 
-        if ($instances->isEmpty()) return;
+        $databases = ManagedDatabase::where('user_id', $user->id)
+            ->where('status', 'RUNNING')
+            ->get();
 
-        $totalCost = $instances->sum(fn($i) => (float) ($i->price_per_hour ?? $i->metadata['price_per_hour'] ?? 0));
+        if ($instances->isEmpty() && $databases->isEmpty()) return;
+
+        $computeCost = $instances->sum(fn($i) => (float) ($i->price_per_hour ?? $i->metadata['price_per_hour'] ?? 0));
+        $dbCost      = $databases->sum(fn($d) => (float) $d->price_per_hour);
+        $totalCost   = $computeCost + $dbCost;
 
         if ($totalCost <= 0) return;
 
-        DB::transaction(function () use ($user, $instances, $totalCost) {
+        DB::transaction(function () use ($user, $instances, $databases, $totalCost) {
             $newBalance = (float) $user->balance - $totalCost;
 
             if ($newBalance < 0) {
                 foreach ($instances as $instance) {
                     $this->compute->changeStatus($instance, 'stop');
                 }
-                $user->balance       = 0;
+                $dbService = app(DatabaseService::class);
+                foreach ($databases as $db) {
+                    try { $dbService->changeStatus($db, 'stop'); } catch (\Exception $e) {}
+                }
+                $user->balance        = 0;
                 $user->account_status = 'SUSPENDED';
                 $user->save();
 
                 BillingTransaction::create([
                     'id'               => Str::uuid(),
                     'user_id'          => $user->id,
-                    'amount'           => -(float) $user->balance,
+                    'amount'           => -$totalCost,
                     'transaction_type' => 'HOURLY_USAGE',
-                    'description'      => 'Saldo habis — semua instance dihentikan otomatis',
+                    'description'      => 'Saldo habis — semua resource dihentikan otomatis',
                 ]);
                 return;
             }
@@ -97,12 +108,19 @@ class BillingService
             $user->save();
 
             foreach ($instances as $instance) {
-                $instance->usage_hours    = ($instance->usage_hours ?? 0) + 1;
-                $instance->cost           = ($instance->cost ?? 0) + ($instance->price_per_hour ?? 0);
+                $instance->usage_hours = ($instance->usage_hours ?? 0) + 1;
+                $instance->cost        = ($instance->cost ?? 0) + ($instance->price_per_hour ?? 0);
                 $instance->save();
             }
+            foreach ($databases as $db) {
+                $db->usage_hours = ($db->usage_hours ?? 0) + 1;
+                $db->cost        = ($db->cost ?? 0) + ($db->price_per_hour ?? 0);
+                $db->save();
+            }
 
-            $desc = $instances->map(fn($i) => ($i->metadata['type'] ?? 'vm') . ':' . $i->name)->join(', ');
+            $parts = $instances->map(fn($i) => ($i->metadata['type'] ?? 'vm') . ':' . $i->name);
+            $parts = $parts->merge($databases->map(fn($d) => 'db:' . $d->db_name));
+            $desc  = $parts->join(', ');
             BillingTransaction::create([
                 'id'               => Str::uuid(),
                 'user_id'          => $user->id,

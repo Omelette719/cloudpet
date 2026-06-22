@@ -28,7 +28,6 @@
             <span class="cp-chip">Beta</span>
         </a>
 
-        {{-- MENU BARU: Block Storage --}}
         <a href="{{ route('cloud.volumes') }}" wire:navigate
             class="cp-side-link {{ request()->routeIs('cloud.volumes') ? 'active' : '' }}">
             <span>💽</span>
@@ -36,16 +35,18 @@
             <span class="cp-chip">Beta</span>
         </a>
 
-        <a href="{{ route('cloud.storage') }}" wire:navigate
-            class="cp-side-link {{ request()->routeIs('cloud.storage') ? 'active' : '' }}">
-            <span>💾</span>
-            <span>Membership</span>
+        <a href="{{ route('cloud.database') }}" wire:navigate
+            class="cp-side-link {{ request()->routeIs('cloud.database') ? 'active' : '' }}">
+            <span>🗄️</span>
+            <span>Database</span>
             <span class="cp-chip">Beta</span>
         </a>
-        <a class="cp-side-link soon">
-            <span>🔑</span>
-            <span>Akses Kunci</span>
-            <span class="cp-chip">Soon</span>
+
+        <a href="{{ route('cloud.storage') }}" wire:navigate
+            class="cp-side-link {{ request()->routeIs('cloud.storage') ? 'active' : '' }}">
+            <span>🎫</span>
+            <span>Membership</span>
+            <span class="cp-chip">Beta</span>
         </a>
     </nav>
 
