@@ -347,10 +347,6 @@ Menyimpan data pengguna, saldo, dan membership. Model: `App\Models\User`
 | storage_plan | string | Tier membership: `free`, `starter`, `pro`, `business` |
 | storage_quota_gb | integer | Volume limit dari tier (30/100/512/2048) |
 | storage_plan_expires_at | timestamp | Tanggal berakhir membership berbayar |
-| two_factor_secret | text (nullable) | Secret key untuk 2FA |
-| two_factor_recovery_codes | text (nullable) | Recovery codes 2FA |
-| two_factor_confirmed_at | timestamp (nullable) | Waktu konfirmasi 2FA |
-| email_verified_at | timestamp (nullable) | Waktu verifikasi email |
 | remember_token | string (nullable) | Token "remember me" |
 | created_at, updated_at | timestamp | Timestamp otomatis |
 
