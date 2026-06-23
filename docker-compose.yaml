@@ -1,6 +1,6 @@
 services:
   ministack:
-    image: localstack/localstack
+    image: ministackorg/ministack:latest
     container_name: ministack
     restart: unless-stopped
     ports:
