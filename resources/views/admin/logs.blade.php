@@ -38,6 +38,7 @@
 </div>
 
 <script>
+document.addEventListener('livewire:navigated', () => {
 const CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 let currentLogTab = 'activity', logPage = 1, logDebounce = null;
 
@@ -156,5 +157,6 @@ function renderPagination(data) {
 }
 
 loadActivity();
+});
 </script>
 @endcomponent

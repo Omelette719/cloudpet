@@ -117,7 +117,7 @@
 </style>
 
 <script>
-(function(){
+document.addEventListener('livewire:navigated', () => {
     const _intervals = [];
     let _destroyed = false;
     document.addEventListener('livewire:navigating', function cleanup() {
@@ -206,5 +206,5 @@
 
     loadServer();
     _intervals.push(setInterval(() => { if (!_destroyed) loadServer(); }, 5000));
-})();
+});
 </script>

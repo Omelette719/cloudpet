@@ -63,6 +63,7 @@
 </div>
 
 <script>
+document.addEventListener('livewire:navigated', () => {
 const CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 const h = {'Content-Type':'application/json','X-CSRF-TOKEN':CSRF};
 
@@ -134,5 +135,6 @@ async function deletePlan(id) {
 }
 
 loadPlans();
+});
 </script>
 @endcomponent

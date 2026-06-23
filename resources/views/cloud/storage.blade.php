@@ -98,6 +98,7 @@
     <div id="toast-container" style="position:fixed;right:20px;bottom:20px;z-index:10000;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
 
     <script>
+    document.addEventListener('livewire:navigated', () => {
         const CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         let currentPlan = 'free';
 
@@ -172,5 +173,6 @@
         }
 
         loadSummary();
+    });
     </script>
 @endcomponent

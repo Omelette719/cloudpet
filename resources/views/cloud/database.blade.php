@@ -178,7 +178,7 @@
 <div id="db-toast-container" style="position:fixed;right:20px;bottom:20px;z-index:10000;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
 
 <script>
-(function () {
+document.addEventListener('livewire:navigated', () => {
     const _timers = [], _intervals = [];
     let _destroyed = false;
     function sti(fn, ms) { const id = setInterval(fn, ms); _intervals.push(id); return id; }
@@ -676,7 +676,7 @@
     }
     refresh();
     sti(() => { if (!_destroyed) refresh(); }, 8000);
-})();
+});
 </script>
 
 @endcomponent

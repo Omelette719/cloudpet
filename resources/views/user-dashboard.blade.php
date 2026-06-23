@@ -203,6 +203,7 @@
 </div>
 
 <script>
+document.addEventListener('livewire:navigated', () => {
     const CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
     const volumeHourlyCost = {{ \App\Models\BlockVolume::where('user_id', auth()->id())->whereIn('status', ['AVAILABLE', 'ATTACHED'])->sum('size_gb') * 15 }};
 
@@ -304,4 +305,5 @@
     loadHistory();
     setInterval(loadSummary, 30000);
     setInterval(loadInstances, 10000);
+});
 </script>

@@ -206,7 +206,7 @@
 <div id="cp-toast-container" style="position:fixed;right:20px;bottom:20px;z-index:10000;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
 
 <script>
-(function () {
+document.addEventListener('livewire:navigated', () => {
     const _timers = [];
     const _intervals = [];
     let _destroyed = false;
@@ -785,7 +785,7 @@
     // ── Init ───────────────────────────────────────────────────────────────
     refresh();
     safeSetInterval(() => { if (!_destroyed) refresh(); }, 5000);
-})();
+});
 </script>
 
 @endcomponent
