@@ -25,15 +25,17 @@ class ActivityLog extends Model
         return $this->belongsTo(User::class);
     }
 
-    public static function log(string $action, ?string $resourceType = null, ?string $resourceId = null, ?int $userId = null): self
+    public static function log(string $action, ?string $resourceType = null, ?string $resourceId = null, ?int $userId = null): static
     {
-        return self::create([
+        /** @var static $log */
+        $log = self::create([
             'id'            => (string) Str::uuid(),
-            'user_id'       => $userId ?? auth()->id(),
+            'user_id'       => $userId ?? \Illuminate\Support\Facades\Auth::id(),
             'action'        => $action,
             'resource_type' => $resourceType,
             'resource_id'   => $resourceId,
-            'ip_address'    => request()->ip(),
+            'ip_address'    => \Illuminate\Support\Facades\Request::ip(),
         ]);
+        return $log;
     }
 }
