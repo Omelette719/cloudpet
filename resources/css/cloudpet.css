@@ -323,18 +323,23 @@ body {
 }
 
 .cp-app-shell {
-    min-height: 100vh;
-    height: auto;
+    height: 100vh;
     display: flex;
     background: linear-gradient(180deg, #f2f8e8 0%, #f8fbf2 100%);
+    overflow: hidden;
 }
 
 .cp-sidebar {
     width: 16rem;
+    flex-shrink: 0;
     border-right: 1px solid var(--cp-soft-border);
     background: #ffffff;
     display: flex;
     flex-direction: column;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    overflow-y: auto;
 }
 
 .cp-sidebar-header {
@@ -426,6 +431,8 @@ body {
     min-width: 0;
     display: flex;
     flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
 }
 
 .cp-topbar {
@@ -437,6 +444,7 @@ body {
     border-bottom: 1px solid var(--cp-soft-border);
     background: rgba(255, 255, 255, 0.78);
     backdrop-filter: blur(6px);
+    flex-shrink: 0;
 }
 
 .cp-topbar h1 {
@@ -456,7 +464,7 @@ body {
 
 .cp-main {
     flex: 1;
-    overflow: visible;
+    overflow-y: auto;
     padding: 1.2rem;
 }
 
@@ -705,12 +713,21 @@ body {
         flex-direction: column;
         height: auto;
         min-height: 100vh;
+        overflow: visible;
     }
 
     .cp-sidebar {
         width: 100%;
+        height: auto;
+        position: relative;
         border-right: 0;
         border-bottom: 1px solid var(--cp-soft-border);
+        overflow-y: visible;
+    }
+
+    .cp-content {
+        height: auto;
+        overflow: visible;
     }
 
     .cp-sidebar-nav {

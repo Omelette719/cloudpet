@@ -25,28 +25,36 @@
             class="cp-side-link {{ request()->routeIs('cloud.index') ? 'active' : '' }}">
             <span>☁️</span>
             <span>Layanan Cloud</span>
-            <span class="cp-chip">Beta</span>
+        </a>
+
+        <a href="{{ route('cloud.computing') }}" wire:navigate
+            class="cp-side-link {{ request()->routeIs('cloud.computing') ? 'active' : '' }}">
+            <span>🖥️</span>
+            <span>Computing</span>
         </a>
 
         <a href="{{ route('cloud.volumes') }}" wire:navigate
             class="cp-side-link {{ request()->routeIs('cloud.volumes') ? 'active' : '' }}">
             <span>💽</span>
             <span>Block Storage</span>
-            <span class="cp-chip">Beta</span>
+        </a>
+
+        <a href="{{ route('cloud.bucket') }}" wire:navigate
+            class="cp-side-link {{ request()->routeIs('cloud.bucket') || request()->routeIs('bucket.manager') ? 'active' : '' }}">
+            <span>📦</span>
+            <span>Object Storage</span>
         </a>
 
         <a href="{{ route('cloud.database') }}" wire:navigate
             class="cp-side-link {{ request()->routeIs('cloud.database') ? 'active' : '' }}">
             <span>🗄️</span>
             <span>Database</span>
-            <span class="cp-chip">Beta</span>
         </a>
 
         <a href="{{ route('cloud.storage') }}" wire:navigate
             class="cp-side-link {{ request()->routeIs('cloud.storage') ? 'active' : '' }}">
             <span>🎫</span>
             <span>Membership</span>
-            <span class="cp-chip">Beta</span>
         </a>
     </nav>
 
@@ -56,7 +64,7 @@
             <span style="font-size: 1.7rem;">{{ $user->animal_avatar }}</span>
             <div>
                 <p class="cp-user-name">{{ $user->name }}</p>
-                <p class="cp-user-role">Member</p>
+                <p class="cp-user-role">{{ $user->membershipLabel() }}</p>
             </div>
         </div>
         <div style="margin-top: 0.45rem;">

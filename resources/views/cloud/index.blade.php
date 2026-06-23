@@ -73,8 +73,7 @@
                 
                 <div style="display:flex; align-items:center; justify-content:space-between;">
                     <div style="width:46px; height:46px; border-radius:0.85rem; background:var(--cp-soft); display:flex; align-items:center; justify-content:center; font-size:1.5rem;">💽</div>
-                    {{-- Jika ingin badge seperti bucket, bisa tambahkan: --}}
-                    {{-- <span class="cp-badge">Aktif</span> --}}
+                    <span class="cp-badge">Aktif</span>
                 </div>
                 
                 <div>
