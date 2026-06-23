@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Aws\S3\S3Client;
 use Aws\Exception\AwsException;
 use Livewire\Component;
+use App\Models\ActivityLog;
 use App\Services\MiniStackService;
 
 class CreateBucket extends Component
@@ -19,6 +20,7 @@ class CreateBucket extends Component
     public function createBucket()
     {
         $this->loading = true;
+        /** @var \App\Models\User $user */
         $user = Auth::user();
 
         if (!$user->canCreateBucket()) {
@@ -50,7 +52,8 @@ class CreateBucket extends Component
                 'secret_key'  => $secretKey,
             ]);
 
-            DB::commit(); // Simpan perubahan jika sukses semua
+            DB::commit();
+            ActivityLog::log('create_bucket', 'storage_bucket', $bucketName);
 
             session()->flash('message', '🎉 Bucket berhasil dibuat!');
             return $this->redirectRoute('user.dashboard', navigate: true);

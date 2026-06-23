@@ -3,6 +3,7 @@
 namespace App\Livewire\Volume;
 
 use Livewire\Component;
+use App\Models\ActivityLog;
 use App\Models\BlockVolume;
 use App\Models\ComputeInstance;
 use App\Services\VolumeService;
@@ -29,6 +30,7 @@ class VolumeManager extends Component
 
         try {
             $volume = $volumeService->createBlockVolume(Auth::user(), $this->volumeName, $this->sizeGb);
+            ActivityLog::log('create_volume', 'block_volume', (string) $volume->id);
             $this->provisioningVolumeId = $volume->id;
             $this->reset('volumeName');
             $this->sizeGb = 10;
@@ -66,6 +68,7 @@ class VolumeManager extends Component
 
         try {
             $volumeService->attachVolume($volume, $instance);
+            ActivityLog::log('attach_volume', 'block_volume', (string) $volume->id);
             session()->flash('success', 'Volume berhasil dipasang.');
         } catch (\Exception $e) {
             session()->flash('error', $e->getMessage());
@@ -80,6 +83,7 @@ class VolumeManager extends Component
 
         try {
             $volumeService->detachVolume($volume);
+            ActivityLog::log('detach_volume', 'block_volume', (string) $volume->id);
             session()->flash('success', 'Volume berhasil dilepas.');
         } catch (\Exception $e) {
             session()->flash('error', $e->getMessage());
@@ -92,6 +96,7 @@ class VolumeManager extends Component
 
         try {
             $volumeService->deleteVolume($volume);
+            ActivityLog::log('delete_volume', 'block_volume', (string) $volume->id);
             session()->flash('success', 'Volume berhasil dihapus.');
         } catch (\Exception $e) {
             session()->flash('error', $e->getMessage());

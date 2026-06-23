@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Cloud;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\User;
 use App\Services\BillingService;
 use Illuminate\Http\Request;
@@ -50,6 +51,7 @@ class BillingController extends Controller
 
         try {
             $tx = $this->billing->topUp($request->user(), (float) $request->amount, $request->note ?? '');
+            ActivityLog::log('topup', 'billing', $tx->id);
             return response()->json(['success' => true, 'transaction' => $tx, 'balance' => (float) $request->user()->fresh()->balance]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'error' => $e->getMessage()], 422);
@@ -68,6 +70,7 @@ class BillingController extends Controller
 
         try {
             $this->billing->subscribeStorage($request->user(), $request->plan);
+            ActivityLog::log('subscribe_membership', 'membership', $request->plan);
             $user = $request->user()->fresh();
             return response()->json([
                 'success'           => true,

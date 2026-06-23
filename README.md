@@ -300,149 +300,218 @@ Membership menentukan batas maksimal resource yang bisa digunakan. Biaya members
 
 ## Rancangan Database
 
+Platform menggunakan 10 model/tabel utama + 3 tabel framework. Total 13 tabel.
+
 ### Entity Relationship
 
 ```
-users
- |-- compute_instances
- |      |-- block_volumes (FK: compute_instance_id)
+users (10 model terhubung)
  |
- |-- managed_databases --> plans (FK: plan_id)
+ |-- compute_instances (VM/IDE/Notebook)
+ |      |-- block_volumes (FK: compute_instance_id, nullable)
+ |
+ |-- managed_databases
+ |      |-- plans (FK: plan_id)
  |
  |-- storage_buckets
  |
  |-- billing_transactions
  |
  |-- activity_logs
+ |
+ +-- [membership tier via storage_plan column]
 
-resource_state_logs    (standalone audit trail)
-system_error_logs      (standalone error log)
-sessions, cache        (framework tables)
+resource_state_logs   (standalone — audit trail perubahan status)
+system_error_logs     (standalone — log error sistem)
+
+sessions              (framework — session management)
+cache / cache_locks   (framework — caching)
+password_reset_tokens (framework — reset password)
+jobs / failed_jobs    (framework — queue)
 ```
 
-### Tabel: users
+### 1. users
 
-Menyimpan data pengguna, saldo, dan membership.
+Menyimpan data pengguna, saldo, dan membership. Model: `App\Models\User`
 
 | Kolom | Tipe | Keterangan |
 |-------|------|------------|
 | id | bigint PK | Auto-increment |
-| name, email, password | string | Kredensial |
+| name | string | Nama lengkap |
+| email | string (unique) | Email login |
+| password | string | Hashed password |
 | role | enum | `admin` atau `user` |
-| animal_avatar | string | Emoji avatar |
-| balance | decimal(15,2) | Saldo prepaid (Rp) |
+| animal_avatar | string | Emoji avatar (default: 🐱) |
+| balance | decimal(15,2) | Saldo prepaid dalam Rupiah |
 | account_status | enum | `ACTIVE`, `SUSPENDED`, `VERIFYING` |
-| storage_plan | string | Tier: `free`, `starter`, `pro`, `business` |
-| storage_quota_gb | integer | Volume limit dari tier |
-| storage_plan_expires_at | timestamp | Tanggal berakhir membership |
+| storage_plan | string | Tier membership: `free`, `starter`, `pro`, `business` |
+| storage_quota_gb | integer | Volume limit dari tier (30/100/512/2048) |
+| storage_plan_expires_at | timestamp | Tanggal berakhir membership berbayar |
+| two_factor_secret | text (nullable) | Secret key untuk 2FA |
+| two_factor_recovery_codes | text (nullable) | Recovery codes 2FA |
+| two_factor_confirmed_at | timestamp (nullable) | Waktu konfirmasi 2FA |
+| email_verified_at | timestamp (nullable) | Waktu verifikasi email |
+| remember_token | string (nullable) | Token "remember me" |
+| created_at, updated_at | timestamp | Timestamp otomatis |
 
-### Tabel: compute_instances
+### 2. compute_instances
 
-Instance VM, Cloud IDE, atau Jupyter Notebook.
+Instance VM, Cloud IDE, atau Jupyter Notebook. Model: `App\Models\ComputeInstance`
 
 | Kolom | Tipe | Keterangan |
 |-------|------|------------|
 | id | bigint PK | Auto-increment |
-| user_id | FK -> users | Pemilik |
-| name | string | Nama instance (e.g., `vm-aB3xK2pQ`) |
+| user_id | FK -> users (cascade) | Pemilik instance |
+| name | string(100) | Nama instance (e.g., `vm-aB3xK2pQ`) |
 | plan | string | Deskripsi resource (e.g., `2c-2GB`) |
 | os | string | OS key (e.g., `ubuntu-22.04`) |
+| ip_address | string(45) | IP container dalam Docker network |
 | status | enum | `PROVISIONING`, `RUNNING`, `STOPPED`, `TERMINATED` |
-| metadata | json | Container ID, port, password, volume info |
-| provision_log | text | Log proses pembuatan |
-| price_per_hour | decimal | Tarif per jam |
-| usage_hours, cost | decimal | Akumulasi penggunaan |
-| deleted_at | timestamp | Soft delete |
+| metadata | json | Container ID, port, password, volume info, EC2 instance ID |
+| provision_log | longText | Log proses pembuatan (ditampilkan di terminal UI) |
+| price_per_hour | decimal(10,2) | Tarif per jam (dihitung dari vCPU + RAM) |
+| usage_hours | decimal(10,2) | Total jam penggunaan |
+| cost | decimal(12,2) | Total biaya akumulasi |
+| started_at | timestamp | Waktu terakhir dijalankan |
+| stopped_at | timestamp | Waktu terakhir dihentikan |
+| deleted_at | timestamp | Soft delete untuk arsip |
+| created_at, updated_at | timestamp | Timestamp otomatis |
 
-### Tabel: block_volumes
+### 3. block_volumes
 
-Block storage berbasis Docker named volume.
+Block storage berbasis Docker named volume + EC2 API. Model: `App\Models\BlockVolume`
 
 | Kolom | Tipe | Keterangan |
 |-------|------|------------|
 | id | bigint PK | Auto-increment |
-| user_id | FK -> users | Pemilik |
-| compute_instance_id | FK -> compute_instances | Instance terpasang (nullable) |
-| volume_name | string | Nama volume |
-| size_gb | integer | Ukuran (GB) |
+| user_id | FK -> users (cascade) | Pemilik volume |
+| compute_instance_id | FK -> compute_instances (nullable, nullOnDelete) | Instance yang terpasang |
+| volume_name | string | Nama volume (e.g., `data-mysql`) |
+| size_gb | integer | Ukuran volume dalam GB |
 | status | string | `PROVISIONING`, `AVAILABLE`, `ATTACHED`, `ERROR` |
-| provider_volume_id | string | EC2 Volume ID dari MiniStack |
-| provision_log | text | Log pembuatan |
+| provider_volume_id | string (nullable) | EC2 Volume ID dari MiniStack (e.g., `vol-abc123`) |
+| provision_log | text (nullable) | Log proses pembuatan |
+| created_at, updated_at | timestamp | Timestamp otomatis |
 
-### Tabel: managed_databases
+### 4. managed_databases
 
-Managed database berbasis Docker container.
+Managed database berbasis Docker container + RDS API. Model: `App\Models\ManagedDatabase`
 
 | Kolom | Tipe | Keterangan |
 |-------|------|------------|
-| id | uuid PK | - |
-| user_id | FK -> users | Pemilik |
-| plan_id | FK -> plans | Paket dipilih |
-| engine | string | `postgres-15`, `mysql-8`, `mariadb-10`, dll |
-| db_name, db_user, db_password | string | Kredensial |
-| host, port | string/int | Endpoint koneksi |
+| id | uuid PK | UUID v4 |
+| user_id | FK -> users (cascade) | Pemilik database |
+| plan_id | FK -> plans (nullable, nullOnDelete) | Paket yang dipilih |
+| engine | string(50) | Engine: `postgres-15`, `postgres-14`, `mysql-8`, `mysql-5.7`, `mariadb-10` |
+| db_name | string(100) | Nama database (auto-generated) |
+| db_user | string(100) | Username database |
+| db_password | string(255) | Password database (hidden dari JSON) |
+| host | string(255) | Host koneksi (e.g., `127.0.0.1`) |
+| port | integer | Port koneksi (mapped dari Docker) |
+| rds_identifier | string (nullable) | RDS Instance ID dari MiniStack |
 | status | string | `PROVISIONING`, `RUNNING`, `STOPPED`, `TERMINATED`, `ERROR` |
-| metadata | json | Container ID, driver info |
-| price_per_hour | decimal | Tarif per jam |
+| metadata | json | Container ID, driver, port mapping, plan info |
+| provision_log | text | Log proses pembuatan |
+| price_per_hour | decimal(10,2) | Tarif per jam dari plan |
+| usage_hours | decimal(12,4) | Total jam penggunaan |
+| cost | decimal(12,2) | Total biaya akumulasi |
+| started_at | timestamp | Waktu terakhir dijalankan |
+| stopped_at | timestamp | Waktu terakhir dihentikan |
+| deleted_at | timestamp | Soft delete |
+| created_at, updated_at | timestamp | Timestamp otomatis |
 
-### Tabel: plans
+### 5. plans
 
-Katalog paket layanan database (dikelola admin).
-
-| Kolom | Tipe | Keterangan |
-|-------|------|------------|
-| id | uuid PK | - |
-| service_type | enum | `DATABASE`, `STORAGE` |
-| name | string | Nama plan (e.g., `db-micro`) |
-| vcpu, ram, storage | integer | Spec resource |
-| price | decimal | Harga per jam (Rp) |
-
-### Tabel: storage_buckets
-
-Bucket S3-compatible.
+Katalog paket layanan (dikelola admin). Model: `App\Models\Plan`
 
 | Kolom | Tipe | Keterangan |
 |-------|------|------------|
-| id | uuid PK | - |
-| user_id | FK -> users | Pemilik |
-| bucket_name | string (unique) | Nama bucket |
-| access_key, secret_key | string | Kredensial S3 |
+| id | uuid PK | UUID v4 |
+| service_type | enum | `DATABASE`, `STORAGE` (compute pakai custom resource) |
+| name | string(100) | Nama plan (e.g., `db-micro`, `db-small`, `db-medium`) |
+| vcpu | integer (nullable) | Jumlah vCPU |
+| ram | integer (nullable) | RAM dalam MB |
+| storage | integer (nullable) | Storage dalam GB |
+| price | decimal(10,2) | Harga per jam (Rp) |
+| created_at, updated_at | timestamp | Timestamp otomatis |
 
-### Tabel: billing_transactions
+### 6. storage_buckets
 
-Log semua transaksi keuangan.
-
-| Kolom | Tipe | Keterangan |
-|-------|------|------------|
-| id | uuid PK | - |
-| user_id | FK -> users | User terkait |
-| amount | decimal(15,2) | Positif = top-up, negatif = debit |
-| transaction_type | enum | `TOPUP`, `HOURLY_USAGE`, `MONTHLY_BILLING`, `REFUND` |
-| description | string | Keterangan |
-
-### Tabel: activity_logs
-
-Audit trail aktivitas pengguna.
+Bucket S3-compatible via MiniStack. Model: `App\Models\StorageBucket`
 
 | Kolom | Tipe | Keterangan |
 |-------|------|------------|
-| id | uuid PK | - |
-| user_id | FK -> users | Pelaku |
-| action | string | Nama aksi |
-| resource_type, resource_id | string | Resource yang diakses |
-| ip_address | string | IP user |
+| id | uuid PK | UUID v4 |
+| user_id | FK -> users (cascade) | Pemilik bucket |
+| bucket_name | string(63) unique | Nama bucket S3 (e.g., `cp-azwin-ab1c2`) |
+| access_key | string(100) | AWS access key unik per bucket |
+| secret_key | string(255) | AWS secret key unik per bucket |
+| created_at, updated_at | timestamp | Timestamp otomatis |
 
-### Tabel: resource_state_logs
+### 7. billing_transactions
 
-Audit trail perubahan status resource.
+Log semua transaksi keuangan platform. Model: `App\Models\BillingTransaction`
 
 | Kolom | Tipe | Keterangan |
 |-------|------|------------|
-| id | uuid PK | - |
-| resource_type | string | `compute_instance`, `block_volume`, `managed_database` |
+| id | uuid PK | UUID v4 |
+| user_id | FK -> users (cascade) | User terkait |
+| amount | decimal(15,2) | Positif = masuk (top-up), negatif = keluar (billing) |
+| transaction_type | enum | `TOPUP`, `HOURLY_USAGE`, `MONTHLY_BILLING`, `REFUND`, `ADMIN_TOPUP`, `ADMIN_DEDUCT` |
+| description | string(255) | Keterangan transaksi |
+| created_at | timestamp | Waktu transaksi (immutable, no updated_at) |
+
+### 8. activity_logs
+
+Audit trail semua aksi pengguna. Model: `App\Models\ActivityLog`
+
+| Kolom | Tipe | Keterangan |
+|-------|------|------------|
+| id | uuid PK | UUID v4 |
+| user_id | FK -> users (nullable, nullOnDelete) | User yang melakukan aksi |
+| action | string(100) | Nama aksi: `login`, `create_instance`, `topup`, `delete_volume`, dll |
+| resource_type | string(50) | Tipe resource: `compute_instance`, `block_volume`, `managed_database`, dll |
+| resource_id | uuid | ID resource yang diakses |
+| ip_address | string(45) | IP address user |
+| created_at | timestamp | Waktu aksi (immutable, no updated_at) |
+
+### 9. resource_state_logs
+
+Audit trail perubahan status resource. Model: `App\Models\ResourceStateLog`
+
+| Kolom | Tipe | Keterangan |
+|-------|------|------------|
+| id | uuid PK | UUID v4 |
+| resource_type | string(50) | `compute_instance`, `block_volume`, `managed_database` |
 | resource_id | uuid | ID resource |
-| old_state, new_state | string | Status sebelum dan sesudah |
-| message | text | Pesan deskriptif |
+| old_state | string(50) | Status sebelum (e.g., `PROVISIONING`) |
+| new_state | string(50) | Status sesudah (e.g., `AVAILABLE`) |
+| triggered_by | enum | `USER_API`, `SYSTEM_CRON`, `ADMIN` |
+| created_at | timestamp | Waktu perubahan (immutable, no updated_at) |
+
+### 10. system_error_logs
+
+Log error sistem untuk monitoring admin. Model: `App\Models\SystemErrorLog`
+
+| Kolom | Tipe | Keterangan |
+|-------|------|------------|
+| id | uuid PK | UUID v4 |
+| service_module | string(100) | Modul yang error (e.g., `ComputeService`, `BillingTick`) |
+| error_level | enum | `WARNING`, `ERROR`, `CRITICAL` |
+| message | text | Pesan error |
+| stack_trace | json (nullable) | Stack trace lengkap |
+| resolved | boolean | Sudah ditangani atau belum (default: false) |
+| created_at | timestamp | Waktu error (immutable, no updated_at) |
+
+### Tabel Framework
+
+| Tabel | Fungsi |
+|-------|--------|
+| sessions | Session management (driver: database) |
+| cache, cache_locks | Cache storage (driver: database) |
+| password_reset_tokens | Token untuk reset password |
+| jobs | Queue job (driver: database) |
+| failed_jobs | Job yang gagal dieksekusi |
 
 ---
 

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Auth;
 
+use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -58,6 +59,7 @@ class Login extends Component
         session()->regenerate();
 
         $user = Auth::user();
+        ActivityLog::log('login');
         if ($user instanceof User && $user->isAdmin()) {
             $this->redirect(route('admin.dashboard'), navigate: true);
         } else {

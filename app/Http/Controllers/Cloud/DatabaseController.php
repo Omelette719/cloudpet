@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Cloud;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\ManagedDatabase;
 use App\Models\Plan;
 use App\Services\DatabaseService;
@@ -36,6 +37,7 @@ class DatabaseController extends Controller
 
         try {
             $db = $this->service->createDatabase($request->user(), $request->plan_id, $request->engine);
+            ActivityLog::log('create_database', 'managed_database', $db->id);
             return response()->json($db->makeVisible('db_password'), 201);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 422);
@@ -47,6 +49,7 @@ class DatabaseController extends Controller
         $request->validate(['action' => 'required|string|in:start,stop,terminate']);
 
         $db = ManagedDatabase::where('id', $id)->where('user_id', $request->user()->id)->firstOrFail();
+        ActivityLog::log($request->action . '_database', 'managed_database', $id);
 
         try {
             $this->service->changeStatus($db, $request->action);
@@ -74,6 +77,7 @@ class DatabaseController extends Controller
             try { $this->service->changeStatus($db, 'terminate'); } catch (\Exception $e) { /* ignore */ }
         }
 
+        ActivityLog::log('delete_database', 'managed_database', $id);
         $db->delete();
         return response()->json(['deleted' => true]);
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Cloud;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\ComputeInstance;
 use App\Services\ComputeService;
 use Illuminate\Http\Request;
@@ -65,6 +66,7 @@ class ComputeController extends Controller
             'volume_id' => $volume->id,
         ]);
 
+        ActivityLog::log('create_instance', 'compute_instance', (string) $instance->id);
         return response()->json($instance, 201);
     }
 
@@ -74,6 +76,7 @@ class ComputeController extends Controller
 
         $user   = $request->user();
         $action = $request->action;
+        ActivityLog::log($action . '_instance', 'compute_instance', (string) $id);
 
         if (in_array($action, ['restore', 'purge'])) {
             $instance = ComputeInstance::onlyTrashed()->where('id', $id)->where('user_id', $user->id)->firstOrFail();

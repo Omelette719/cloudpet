@@ -56,6 +56,7 @@ Route::middleware('auth')->group(function () {
 
     // Logout
     Route::post('/logout', function () {
+        \App\Models\ActivityLog::log('logout');
         Auth::logout();
         request()->session()->invalidate();
         request()->session()->regenerateToken();
