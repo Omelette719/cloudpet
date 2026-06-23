@@ -38,7 +38,7 @@ class ComputeController extends Controller
             'ram'       => 'required|integer|in:' . $validRams,
             'type'      => 'nullable|string|in:vm,ide,notebook',
             'os'        => 'nullable|string|in:ubuntu-22.04,ubuntu-20.04,debian-12,alpine',
-            'volume_id' => 'required|integer|exists:block_volumes,id',
+            'volume_id' => 'required|string|exists:block_volumes,id',
         ]);
 
         $user = $request->user();

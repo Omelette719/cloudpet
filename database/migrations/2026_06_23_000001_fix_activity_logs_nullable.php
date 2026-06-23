@@ -12,7 +12,8 @@ return new class extends Migration
 
         Schema::create('activity_logs', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->uuid('user_id')->nullable();
+            $table->foreign('user_id')->references('id')->on('users')->nullOnDelete();
             $table->string('action', 100);
             $table->string('resource_type', 50)->nullable();
             $table->string('resource_id')->nullable();

@@ -10,7 +10,8 @@ return new class extends Migration
     {
         Schema::create('billing_transactions', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->uuid('user_id');
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
             $table->decimal('amount', 15, 2);
             $table->enum('transaction_type', ['TOPUP', 'HOURLY_USAGE', 'REFUND', 'MONTHLY_BILLING'])->default('HOURLY_USAGE');
             $table->string('description', 255)->nullable();

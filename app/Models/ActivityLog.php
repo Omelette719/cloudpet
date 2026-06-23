@@ -2,16 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 class ActivityLog extends Model
 {
-    use HasFactory;
-
-    protected $keyType = 'string';
-    public $incrementing = false;
+    use HasFactory, HasUuids;
 
     protected $fillable = [
         'id', 'user_id', 'action', 'resource_type', 'resource_id', 'ip_address',
@@ -25,7 +23,7 @@ class ActivityLog extends Model
         return $this->belongsTo(User::class);
     }
 
-    public static function log(string $action, ?string $resourceType = null, ?string $resourceId = null, ?int $userId = null): static
+    public static function log(string $action, ?string $resourceType = null, ?string $resourceId = null, ?string $userId = null): static
     {
         /** @var static $log */
         $log = self::create([

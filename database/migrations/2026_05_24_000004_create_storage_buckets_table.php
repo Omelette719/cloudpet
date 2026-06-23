@@ -10,7 +10,8 @@ return new class extends Migration
     {
         Schema::create('storage_buckets', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->uuid('user_id');
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
             $table->string('bucket_name', 63)->unique();
             $table->string('access_key', 100);
             $table->string('secret_key', 255);

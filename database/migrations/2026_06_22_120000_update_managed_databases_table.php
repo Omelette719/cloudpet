@@ -12,7 +12,8 @@ return new class extends Migration
 
         Schema::create('managed_databases', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->uuid('user_id');
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
             $table->uuid('plan_id')->nullable();
             $table->foreign('plan_id')->references('id')->on('plans')->nullOnDelete();
 

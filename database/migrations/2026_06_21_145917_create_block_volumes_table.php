@@ -9,24 +9,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('block_volumes', function (Blueprint $table) {
-            $table->id();
-            
-            // Relasi ke User pemilik
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            
-            // Relasi ke Compute Instance. 
-            // Dibuat nullable() karena volume bisa saja sedang tidak menempel (AVAILABLE).
-            // nullOnDelete() memastikan jika Compute Instance dihapus, Block Volume TIDAK ikut terhapus, melainkan hanya terlepas (DETACHED).
-            $table->foreignId('compute_instance_id')->nullable()->constrained('compute_instances')->nullOnDelete();
-            
+            $table->uuid('id')->primary();
+            $table->uuid('user_id');
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
+            $table->uuid('compute_instance_id')->nullable();
+            $table->foreign('compute_instance_id')->references('id')->on('compute_instances')->nullOnDelete();
+
             $table->string('volume_name');
             $table->integer('size_gb');
-            
-            // Status: PROVISIONING, AVAILABLE, ATTACHED, DELETING
-            $table->string('status')->default('PROVISIONING'); 
-            
-            // Untuk menyimpan ID referensi dari engine simulator (Ministack)
-            $table->string('provider_volume_id')->nullable(); 
+            $table->string('status')->default('PROVISIONING');
+            $table->string('provider_volume_id')->nullable();
 
             $table->timestamps();
         });

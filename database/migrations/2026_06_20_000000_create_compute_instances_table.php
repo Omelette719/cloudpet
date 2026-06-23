@@ -9,8 +9,9 @@ return new class extends Migration {
     {
         if (! Schema::hasTable('compute_instances')) {
             Schema::create('compute_instances', function (Blueprint $table) {
-                $table->id();
-                $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+                $table->uuid('id')->primary();
+                $table->uuid('user_id');
+                $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
                 $table->string('name');
                 $table->string('plan')->nullable();
                 $table->string('status')->default('provisioning');
