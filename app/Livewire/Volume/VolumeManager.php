@@ -77,19 +77,6 @@ class VolumeManager extends Component
         $this->closeAttachModal();
     }
 
-    public function detachVolume(string $volumeId, VolumeService $volumeService): void
-    {
-        $volume = BlockVolume::where('id', $volumeId)->where('user_id', Auth::id())->firstOrFail();
-
-        try {
-            $volumeService->detachVolume($volume);
-            ActivityLog::log('detach_volume', 'block_volume', (string) $volume->id);
-            session()->flash('success', 'Volume berhasil dilepas.');
-        } catch (\Exception $e) {
-            session()->flash('error', $e->getMessage());
-        }
-    }
-
     public function deleteVolume(string $volumeId, VolumeService $volumeService): void
     {
         $volume = BlockVolume::where('id', $volumeId)->where('user_id', Auth::id())->firstOrFail();

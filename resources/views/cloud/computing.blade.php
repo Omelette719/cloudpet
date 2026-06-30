@@ -557,12 +557,12 @@ document.addEventListener('livewire:navigated', () => {
                         showConfirm('Stop ' + it.name + '?', 'Instance dihentikan, bisa di-start lagi.', () => API.action(it.id, 'stop').then(refresh));
                     }));
                     actEl.appendChild(btn('Restart', 'background:#fef3c7;color:#92400e;border-color:#fde68a;', () => {
-                        API.action(it.id, 'restart').then(() => { showToast('Instance di-restart'); refresh(); });
+                        API.action(it.id, 'restart').then(res => { showToast(res?.error || 'Instance di-restart', !res?.error); refresh(); });
                     }));
                 }
                 if (status === 'STOPPED') {
                     actEl.appendChild(btn('▶ Start', 'background:#eaf4dd;color:#3b5136;border-color:#c6e0a8;', () => {
-                        API.action(it.id, 'start').then(() => { showToast('Instance dihidupkan'); refresh(); });
+                        API.action(it.id, 'start').then(res => { showToast(res?.error || 'Instance dihidupkan', !res?.error); refresh(); });
                     }));
                 }
                 if (status !== 'TERMINATED') {
@@ -775,11 +775,11 @@ document.addEventListener('livewire:navigated', () => {
     }
 
     // ── Toast ──────────────────────────────────────────────────────────────
-    function showToast(msg) {
+    function showToast(msg, ok = true) {
         const c = document.getElementById('cp-toast-container');
         if (!c) return;
         const t = document.createElement('div');
-        t.style.cssText = 'pointer-events:auto;background:linear-gradient(90deg,#3b5136,#4a6344);color:#eef6e8;padding:10px 16px;border-radius:0.85rem;font-weight:700;font-size:0.875rem;box-shadow:0 6px 18px rgba(34,48,31,0.22);';
+        t.style.cssText = `pointer-events:auto;background:${ok ? 'linear-gradient(90deg,#3b5136,#4a6344)' : '#c53030'};color:#eef6e8;padding:10px 16px;border-radius:0.85rem;font-weight:700;font-size:0.875rem;box-shadow:0 6px 18px rgba(34,48,31,0.22);`;
         t.innerText = msg; c.appendChild(t);
         safeSetTimeout(() => { t.style.transition = 'opacity 300ms'; t.style.opacity = '0'; safeSetTimeout(() => t.remove(), 350); }, 3500);
     }

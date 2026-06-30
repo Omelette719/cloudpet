@@ -12,6 +12,7 @@ Artisan::command('inspire', function () {
 
 Schedule::command('billing:tick')->hourly();
 Schedule::command('storage:sync')->everyFifteenMinutes();
+Schedule::command('disk:enforce')->everyFiveMinutes();
 
 // Untuk Laravel 10 ke bawah — di app/Console/Kernel.php method schedule():
 // $schedule->command('billing:tick')->hourly();

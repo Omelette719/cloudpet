@@ -95,8 +95,9 @@ class DatabaseService
         $this->appendLog($database, "[3/4] Menjalankan container database...");
         $envFlags = $this->buildEnvFlags($database, $engineConf);
         $cmd = sprintf(
-            'docker run -d --name %s --memory=%dm --cpus=%s --network=%s -p %d:%d %s --restart=unless-stopped %s',
+            'docker run -d --name %s --memory=%dm --memory-swap=%dm --cpus=%s --network=%s -p %d:%d %s --restart=unless-stopped %s',
             escapeshellarg($containerName),
+            $plan->ram ?? 1024,
             $plan->ram ?? 1024,
             $plan->vcpu ?? 1,
             escapeshellarg($networkName),

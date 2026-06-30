@@ -63,9 +63,24 @@ class VolumeService
             Log::warning("EC2 AttachVolume skip: {$e->getMessage()}");
         }
 
+        // Kalau instance belum punya disk utama (mis. habis di-detach), volume ini jadi disk utama (/data)
+        $becomesPrimary = empty($instance->metadata['volume_id'] ?? null);
+
+        if ($becomesPrimary) {
+            $meta = $instance->metadata ?? [];
+            $meta['volume_id']      = $volume->id;
+            $meta['volume_name']    = $volume->volume_name;
+            $meta['volume_size_gb'] = $volume->size_gb;
+            $meta['storage_path']   = "cp_vol_{$volume->provider_volume_id}";
+            $instance->metadata = $meta;
+            $instance->save();
+        }
+
         // Data plane: recreate container dengan volume baru di-mount
         if (in_array($instance->status, ['RUNNING', 'STOPPED'])) {
-            $mounts = $this->getVolumeMounts($instance, adding: $volume);
+            $mounts = $becomesPrimary
+                ? $this->getVolumeMounts($instance)
+                : $this->getVolumeMounts($instance, adding: $volume);
             $this->recreateContainerWithVolumes($instance, $mounts);
         }
 
@@ -80,44 +95,6 @@ class VolumeService
                 'old_state'     => $old,
                 'new_state'     => 'ATTACHED',
                 'message'       => "Volume dipasang ke instance {$instance->name}.",
-            ]);
-        });
-    }
-
-    public function detachVolume(BlockVolume $volume): void
-    {
-        if ($volume->status !== 'ATTACHED') {
-            throw new Exception('Volume tidak sedang terpasang.');
-        }
-
-        $instance    = $volume->computeInstance;
-        $instanceRef = $instance?->metadata['container_id'] ?? (string) ($instance?->id ?? '');
-
-        // Control plane: EC2 DetachVolume (best effort)
-        if ($instance && $volume->provider_volume_id) {
-            try {
-                $this->miniStack->detachVolume($volume->provider_volume_id, $instanceRef);
-            } catch (Exception $e) {
-                Log::warning("EC2 DetachVolume skip: {$e->getMessage()}");
-            }
-        }
-
-        // Data plane: recreate container tanpa volume ini
-        if ($instance && in_array($instance->status, ['RUNNING', 'STOPPED'])) {
-            $mounts = $this->getVolumeMounts($instance, removing: $volume);
-            $this->recreateContainerWithVolumes($instance, $mounts);
-        }
-
-        DB::transaction(function () use ($volume) {
-            $volume->update(['status' => 'AVAILABLE', 'compute_instance_id' => null]);
-
-            ResourceStateLog::create([
-                'id'            => (string) Str::uuid(),
-                'resource_type' => 'block_volume',
-                'resource_id'   => $volume->id,
-                'old_state'     => 'ATTACHED',
-                'new_state'     => 'AVAILABLE',
-                'message'       => 'Volume dilepas dari instance.',
             ]);
         });
     }
@@ -160,7 +137,7 @@ class VolumeService
 
     // ── Docker volume mount helpers ─────────────────────────────────────────
 
-    protected function getVolumeMounts(ComputeInstance $instance, ?BlockVolume $adding = null, ?BlockVolume $removing = null): array
+    protected function getVolumeMounts(ComputeInstance $instance, ?BlockVolume $adding = null): array
     {
         $volumes = BlockVolume::where('compute_instance_id', $instance->id)
             ->where('status', 'ATTACHED')
@@ -168,9 +145,6 @@ class VolumeService
 
         $mounts = [];
         foreach ($volumes as $vol) {
-            if ($removing && $vol->id === $removing->id) {
-                continue;
-            }
             $mounts[] = [
                 'docker_name' => "cp_vol_{$vol->provider_volume_id}",
                 'mount_path'  => "/mnt/volumes/{$vol->volume_name}",
@@ -261,6 +235,7 @@ class VolumeService
             'docker create',
             '--name ' . escapeshellarg($meta['container_name']),
             sprintf('--memory=%dm', $res['memory']),
+            sprintf('--memory-swap=%dm', $res['memory']),
             sprintf('--cpus=%s', $res['cpu']),
             '--network=' . escapeshellarg($meta['network']),
         ];
@@ -299,6 +274,16 @@ class VolumeService
 
         $parts[] = '--restart=unless-stopped';
         $parts[] = escapeshellarg($image);
+
+        // VM type: image hasil commit sudah punya SSH ter-install dari boot pertama.
+        // Jangan jalankan ulang script instalasi (apt-get dkk) — cukup nyalakan sshd langsung,
+        // supaya recreate (attach/detach volume) tidak macet kalau state dpkg dari commit sebelumnya rusak.
+        if ($type === 'vm') {
+            $osKey  = $meta['os'] ?? ComputeService::DEFAULT_OS;
+            $family = ComputeService::IMAGES[$osKey]['family'] ?? 'apt';
+            $shell  = $family === 'apk' ? 'sh' : 'bash';
+            $parts[] = $shell . ' -c ' . escapeshellarg('mkdir -p /run/sshd && exec /usr/sbin/sshd -D');
+        }
 
         return implode(' ', $parts);
     }

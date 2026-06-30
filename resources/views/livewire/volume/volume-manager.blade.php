@@ -167,11 +167,9 @@
                                     @endif
 
                                     @if($volume->status === 'ATTACHED')
-                                        <button wire:click="detachVolume('{{ $volume->id }}')"
-                                                wire:confirm="Lepas volume {{ $volume->volume_name }} dari {{ $volume->computeInstance->name ?? 'instance' }}?"
-                                                style="padding:6px 12px;border-radius:0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid #fde68a;background:#fef3c7;color:#92400e;">
-                                            Detach
-                                        </button>
+                                        <span style="font-size:0.72rem;color:var(--cp-ink-muted);font-weight:600;" title="Volume hanya bisa lepas otomatis saat instance di-terminate.">
+                                            Terpasang permanen
+                                        </span>
                                     @endif
 
                                 </div>

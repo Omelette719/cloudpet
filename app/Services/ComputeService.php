@@ -177,8 +177,8 @@ class ComputeService
             : '-v ' . escapeshellarg($storagePath) . ':/data';
 
         $vmCmd = sprintf(
-            'docker run -d --name %s --memory=%dm --cpus=%s --network=%s -p %d:22 %s --restart=unless-stopped %s %s -c %s',
-            escapeshellarg($containerName), $ramMb, $cpu,
+            'docker run -d --name %s --memory=%dm --memory-swap=%dm --cpus=%s --network=%s -p %d:22 %s --restart=unless-stopped %s %s -c %s',
+            escapeshellarg($containerName), $ramMb, $ramMb, $cpu,
             escapeshellarg($networkName), $sshPort, $storageFlag,
             escapeshellarg($osConf['image']), $shell, escapeshellarg($bootstrap)
         );
@@ -298,8 +298,8 @@ class ComputeService
             : '-v ' . escapeshellarg($storagePath) . ':/home/coder/project';
 
         $cmd = sprintf(
-            'docker run -d --name %s --memory=%dm --cpus=%s --network=%s -p %d:8080 %s -e PASSWORD=%s --restart=unless-stopped codercom/code-server:latest',
-            escapeshellarg($containerName), $ramMb, $cpu,
+            'docker run -d --name %s --memory=%dm --memory-swap=%dm --cpus=%s --network=%s -p %d:8080 %s -e PASSWORD=%s --restart=unless-stopped codercom/code-server:latest',
+            escapeshellarg($containerName), $ramMb, $ramMb, $cpu,
             escapeshellarg($networkName), $idePort,
             $storageFlag, escapeshellarg($idePassword)
         );
@@ -391,8 +391,8 @@ class ComputeService
             : '-v ' . escapeshellarg($storagePath) . ':/home/jovyan/work';
 
         $cmd = sprintf(
-            'docker run -d --name %s --memory=%dm --cpus=%s --network=%s -p %d:8888 %s -e JUPYTER_TOKEN=%s --restart=unless-stopped jupyter/minimal-notebook:latest',
-            escapeshellarg($containerName), $ramMb, $cpu,
+            'docker run -d --name %s --memory=%dm --memory-swap=%dm --cpus=%s --network=%s -p %d:8888 %s -e JUPYTER_TOKEN=%s --restart=unless-stopped jupyter/minimal-notebook:latest',
+            escapeshellarg($containerName), $ramMb, $ramMb, $cpu,
             escapeshellarg($networkName), $nbPort,
             $storageFlag, escapeshellarg($nbToken)
         );
@@ -533,9 +533,10 @@ class ComputeService
         };
 
         $volumeSizeGb = $meta['volume_size_gb'] ?? null;
+        $nullDevice   = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
 
         if ($volumeSizeGb) {
-            exec('docker exec ' . escapeshellarg($target) . ' du -sb ' . escapeshellarg($mountPoint) . ' 2>/dev/null', $duOut, $duRc);
+            exec('docker exec ' . escapeshellarg($target) . ' du -sb ' . escapeshellarg($mountPoint) . ' 2>' . $nullDevice, $duOut, $duRc);
             $usedBytes = $duRc === 0 ? (int) ($duOut[0] ?? 0) : 0;
             $usedGb    = $usedBytes / (1024 ** 3);
             $usedLabel = $usedGb >= 1 ? round($usedGb, 1) . 'G' : round($usedBytes / (1024 ** 2), 1) . 'M';
@@ -548,7 +549,7 @@ class ComputeService
             if ($usedGb >= $volumeSizeGb) {
                 $stats['disk_over_limit'] = true;
                 // Set mount read-only agar tidak bisa tulis lagi
-                exec('docker exec ' . escapeshellarg($target) . ' chmod -R a-w ' . escapeshellarg($mountPoint) . ' 2>/dev/null');
+                exec('docker exec ' . escapeshellarg($target) . ' chmod -R a-w ' . escapeshellarg($mountPoint) . ' 2>' . $nullDevice);
             }
         } else {
             exec('docker exec ' . escapeshellarg($target) . ' df -h ' . escapeshellarg($mountPoint) . ' 2>&1', $dfOut, $dfRc);

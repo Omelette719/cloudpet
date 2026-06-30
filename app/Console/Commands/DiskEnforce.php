@@ -33,7 +33,9 @@ class DiskEnforce extends Command
                 default    => '/data',
             };
 
-            exec('docker exec ' . escapeshellarg($target) . ' du -sb ' . escapeshellarg($mountPoint) . ' 2>/dev/null', $out, $rc);
+            $nullDevice = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
+
+            exec('docker exec ' . escapeshellarg($target) . ' du -sb ' . escapeshellarg($mountPoint) . ' 2>' . $nullDevice, $out, $rc);
             $usedBytes = $rc === 0 ? (int) ($out[0] ?? 0) : 0;
             $usedGb    = $usedBytes / (1024 ** 3);
 
@@ -44,7 +46,7 @@ class DiskEnforce extends Command
                 Log::warning("Disk over limit: {$instance->name} ({$usedGb}G / {$volumeGb}G). Auto-stop.");
 
                 // Read-only dulu agar data tidak corrupt
-                exec('docker exec ' . escapeshellarg($target) . ' chmod -R a-w ' . escapeshellarg($mountPoint) . ' 2>/dev/null');
+                exec('docker exec ' . escapeshellarg($target) . ' chmod -R a-w ' . escapeshellarg($mountPoint) . ' 2>' . $nullDevice);
                 $compute->changeStatus($instance, 'stop');
             } elseif ($pct >= 90) {
                 $this->line("  {$instance->name}: {$pct}% — mendekati limit.");

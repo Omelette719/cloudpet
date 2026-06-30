@@ -93,6 +93,10 @@ class ComputeController extends Controller
             return response()->json(['deleted' => true]);
         }
 
+        if (in_array($action, ['start', 'restart']) && empty($instance->metadata['volume_id'] ?? null)) {
+            return response()->json(['error' => 'Instance tidak punya block storage. Pasang volume terlebih dahulu di halaman Block Storage.'], 422);
+        }
+
         $this->service->changeStatus($instance, $action);
         return response()->json($instance->refresh());
     }
