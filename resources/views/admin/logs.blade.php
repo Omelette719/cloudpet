@@ -45,9 +45,9 @@ let currentLogTab = 'activity', logPage = 1, logDebounce = null;
 const tabActiveStyle = 'width:auto;padding:8px 16px;font-size:0.82rem;border-radius:0.7rem;';
 const tabInactiveStyle = 'padding:8px 16px;border-radius:0.7rem;border:1px solid var(--cp-soft-border);background:#fff;font-size:0.82rem;font-weight:700;color:var(--cp-ink-muted);cursor:pointer;';
 
-function debounceLog() { clearTimeout(logDebounce); logDebounce = setTimeout(() => { logPage=1; loadCurrentTab(); }, 400); }
+window.debounceLog = function() { clearTimeout(logDebounce); logDebounce = setTimeout(() => { logPage=1; loadCurrentTab(); }, 400); }
 
-function switchTab(tab) {
+window.switchTab = function(tab) {
     currentLogTab = tab; logPage = 1;
     document.getElementById('tab-activity').className = tab==='activity' ? 'cp-btn' : '';
     document.getElementById('tab-activity').style.cssText = tab==='activity' ? tabActiveStyle : tabInactiveStyle;
@@ -61,13 +61,13 @@ function switchTab(tab) {
     loadCurrentTab();
 }
 
-function loadCurrentTab() {
+window.loadCurrentTab = function() {
     if (currentLogTab === 'activity') loadActivity();
     else if (currentLogTab === 'resource') loadResourceState();
     else loadErrors();
 }
 
-async function loadActivity(page) {
+window.loadActivity = async function(page) {
     if (page) logPage = page;
     const search = document.getElementById('log-search').value;
     const res = await fetch(`/admin/api/logs/activity?page=${logPage}&search=${encodeURIComponent(search)}`, {credentials:'same-origin'});
@@ -89,7 +89,7 @@ async function loadActivity(page) {
     renderPagination(data);
 }
 
-async function loadResourceState(page) {
+window.loadResourceState = async function(page) {
     if (page) logPage = page;
     const search = document.getElementById('log-search').value;
     const resourceType = document.getElementById('log-resource-type').value;
@@ -116,7 +116,7 @@ async function loadResourceState(page) {
     renderPagination(data);
 }
 
-async function loadErrors(page) {
+window.loadErrors = async function(page) {
     if (page) logPage = page;
     const search = document.getElementById('log-search').value;
     const level = document.getElementById('log-filter').value;

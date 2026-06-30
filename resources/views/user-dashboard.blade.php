@@ -270,9 +270,9 @@ document.addEventListener('livewire:navigated', () => {
         }).join('');
     }
 
-    function setTopupAmount(amt) { document.getElementById('topup-amount').value = amt; }
+    window.setTopupAmount = function(amt) { document.getElementById('topup-amount').value = amt; }
 
-    async function doTopUp() {
+    window.doTopUp = async function() {
         const amount = parseFloat(document.getElementById('topup-amount').value);
         const msg = document.getElementById('topup-msg');
         const btn = document.getElementById('topup-btn');

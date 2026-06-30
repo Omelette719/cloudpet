@@ -14,10 +14,10 @@ class VolumeManager extends Component
     public string $volumeName = '';
     public int $sizeGb = 10;
 
-    public ?int $attachingVolumeId = null;
+    public ?string $attachingVolumeId = null;
     public string $attachInstanceId = '';
 
-    public ?int $provisioningVolumeId = null;
+    public ?string $provisioningVolumeId = null;
 
     protected $rules = [
         'volumeName' => 'required|string|min:3|max:50|regex:/^[a-zA-Z0-9_-]+$/',
@@ -44,7 +44,7 @@ class VolumeManager extends Component
         $this->provisioningVolumeId = null;
     }
 
-    public function openAttachModal(int $volumeId): void
+    public function openAttachModal(string $volumeId): void
     {
         $this->attachingVolumeId = $volumeId;
         $this->attachInstanceId = '';
@@ -77,7 +77,7 @@ class VolumeManager extends Component
         $this->closeAttachModal();
     }
 
-    public function detachVolume(int $volumeId, VolumeService $volumeService): void
+    public function detachVolume(string $volumeId, VolumeService $volumeService): void
     {
         $volume = BlockVolume::where('id', $volumeId)->where('user_id', Auth::id())->firstOrFail();
 
@@ -90,7 +90,7 @@ class VolumeManager extends Component
         }
     }
 
-    public function deleteVolume(int $volumeId, VolumeService $volumeService): void
+    public function deleteVolume(string $volumeId, VolumeService $volumeService): void
     {
         $volume = BlockVolume::where('id', $volumeId)->where('user_id', Auth::id())->firstOrFail();
 

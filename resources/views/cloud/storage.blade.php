@@ -144,7 +144,7 @@
             });
         }
 
-        async function subscribePlan(plan) {
+        window.subscribePlan = async function(plan) {
             const btn = document.getElementById('btn-' + plan);
             btn.disabled = true;
             btn.innerText = 'Memproses...';

@@ -152,7 +152,7 @@
                                 <div style="display:flex;justify-content:flex-end;gap:6px;">
 
                                     @if(in_array($volume->status, ['AVAILABLE', 'PROVISIONING', 'ERROR']))
-                                        <button wire:click="deleteVolume({{ $volume->id }})"
+                                        <button wire:click="deleteVolume('{{ $volume->id }}')"
                                                 wire:confirm="Yakin ingin menghapus volume {{ $volume->volume_name }}? Tindakan ini permanen."
                                                 style="padding:6px 12px;border-radius:0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid #f5c6c6;background:#fde8e8;color:#9b2c2c;">
                                             Hapus
@@ -160,14 +160,14 @@
                                     @endif
 
                                     @if($volume->status === 'AVAILABLE')
-                                        <button wire:click="openAttachModal({{ $volume->id }})"
+                                        <button wire:click="openAttachModal('{{ $volume->id }}')"
                                                 style="padding:6px 12px;border-radius:0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid #b8d4f0;background:#e8f2fb;color:#2b5fa0;">
                                             Attach
                                         </button>
                                     @endif
 
                                     @if($volume->status === 'ATTACHED')
-                                        <button wire:click="detachVolume({{ $volume->id }})"
+                                        <button wire:click="detachVolume('{{ $volume->id }}')"
                                                 wire:confirm="Lepas volume {{ $volume->volume_name }} dari {{ $volume->computeInstance->name ?? 'instance' }}?"
                                                 style="padding:6px 12px;border-radius:0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid #fde68a;background:#fef3c7;color:#92400e;">
                                             Detach

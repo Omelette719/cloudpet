@@ -84,7 +84,7 @@ async function loadPlans() {
     </tr>`).join('');
 }
 
-function showCreateForm() {
+window.showCreateForm = function() {
     document.getElementById('form-title').innerText = 'Tambah Plan Baru';
     document.getElementById('f-id').value = '';
     ['f-name','f-vcpu','f-ram','f-storage','f-price'].forEach(id => document.getElementById(id).value = '');
@@ -93,7 +93,7 @@ function showCreateForm() {
     document.getElementById('plan-form').scrollIntoView({behavior:'smooth'});
 }
 
-function editPlan(p) {
+window.editPlan = function(p) {
     document.getElementById('form-title').innerText = 'Edit Plan: ' + p.name;
     document.getElementById('f-id').value = p.id;
     document.getElementById('f-type').value = p.service_type;
@@ -106,9 +106,9 @@ function editPlan(p) {
     document.getElementById('plan-form').scrollIntoView({behavior:'smooth'});
 }
 
-function hideForm() { document.getElementById('plan-form').style.display = 'none'; }
+window.hideForm = function() { document.getElementById('plan-form').style.display = 'none'; }
 
-async function savePlan() {
+window.savePlan = async function() {
     const id = document.getElementById('f-id').value;
     const data = {
         service_type: document.getElementById('f-type').value,
@@ -126,7 +126,7 @@ async function savePlan() {
     hideForm(); loadPlans();
 }
 
-async function deletePlan(id) {
+window.deletePlan = async function(id) {
     if (!confirm('Hapus plan ini?')) return;
     const res = await fetch('/admin/api/plans/' + id, { method:'DELETE', headers:h, credentials:'same-origin' });
     const result = await res.json();

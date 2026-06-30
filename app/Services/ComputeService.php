@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BlockVolume;
 use App\Models\ComputeInstance;
+use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -57,7 +58,7 @@ class ComputeService
 
     // ─── Buat instance ────────────────────────────────────────────────────────
 
-    public function createInstance($user, array $options = []): ComputeInstance
+    public function createInstance(User $user, array $options = []): ComputeInstance
     {
         $instance = $this->initInstance($user, $options);
 
@@ -65,11 +66,11 @@ class ComputeService
         $logFile = storage_path('logs/provision_' . $instance->id . '.out');
 
         if (PHP_OS_FAMILY === 'Windows') {
-            pclose(popen(sprintf('start /B php %s compute:provision %d > %s 2>&1',
-                escapeshellarg($artisan), $instance->id, escapeshellarg($logFile)), 'r'));
+            pclose(popen(sprintf('start /B php %s compute:provision %s > %s 2>&1',
+                escapeshellarg($artisan), escapeshellarg($instance->id), escapeshellarg($logFile)), 'r'));
         } else {
-            exec(sprintf('nohup php %s compute:provision %d > %s 2>&1 &',
-                escapeshellarg($artisan), $instance->id, escapeshellarg($logFile)));
+            exec(sprintf('nohup php %s compute:provision %s > %s 2>&1 &',
+                escapeshellarg($artisan), escapeshellarg($instance->id), escapeshellarg($logFile)));
         }
 
         return $instance;
@@ -77,7 +78,7 @@ class ComputeService
 
     // ─── Tahap 1: buat record di DB ──────────────────────────────────────────
 
-    public function initInstance($user, array $options = []): ComputeInstance
+    public function initInstance(User $user, array $options = []): ComputeInstance
     {
         $type     = $options['type'] ?? self::DEFAULT_TYPE;
         $cpu      = $options['cpu']  ?? 1;

@@ -78,9 +78,9 @@ const CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('con
 const h = {'Content-Type':'application/json','X-CSRF-TOKEN':CSRF};
 let currentPage = 1, selectedUserId = null, debounceTimer = null;
 
-function debounceLoad() { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => { currentPage=1; loadUsers(); }, 400); }
+window.debounceLoad = function() { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => { currentPage=1; loadUsers(); }, 400); }
 
-async function loadUsers(page) {
+window.loadUsers = async function(page) {
     if (page) currentPage = page;
     const search = document.getElementById('u-search').value;
     const role = document.getElementById('u-role').value;
@@ -111,7 +111,7 @@ async function loadUsers(page) {
     } else { pg.innerHTML = ''; }
 }
 
-async function showDetail(id) {
+window.showDetail = async function(id) {
     selectedUserId = id;
     const res = await fetch('/admin/api/users/' + id, {credentials:'same-origin'});
     const d = await res.json();
@@ -140,7 +140,7 @@ async function showDetail(id) {
     document.getElementById('user-detail').scrollIntoView({behavior:'smooth'});
 }
 
-async function adjustBalance() {
+window.adjustBalance = async function() {
     const amount = parseFloat(document.getElementById('adj-amount').value);
     if (!amount) return;
     await fetch('/admin/api/users/' + selectedUserId, { method:'PUT', headers:h, body:JSON.stringify({balance_adjust:amount}), credentials:'same-origin' });
@@ -148,12 +148,12 @@ async function adjustBalance() {
     showDetail(selectedUserId); loadUsers();
 }
 
-async function setStatus(status) {
+window.setStatus = async function(status) {
     await fetch('/admin/api/users/' + selectedUserId, { method:'PUT', headers:h, body:JSON.stringify({account_status:status}), credentials:'same-origin' });
     showDetail(selectedUserId); loadUsers();
 }
 
-async function setPlan() {
+window.setPlan = async function() {
     const plan = document.getElementById('adj-plan').value;
     await fetch('/admin/api/users/' + selectedUserId, { method:'PUT', headers:h, body:JSON.stringify({storage_plan:plan}), credentials:'same-origin' });
     showDetail(selectedUserId); loadUsers();

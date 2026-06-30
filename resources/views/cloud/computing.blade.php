@@ -271,6 +271,7 @@ document.addEventListener('livewire:navigated', () => {
 
         // Render vCPU buttons
         const cpuWrap = document.getElementById('cpu-selector');
+        cpuWrap.innerHTML = '';
         (data.vcpu_options || [1,2,3,4]).forEach(c => {
             const locked = c > maxVcpu;
             cpuWrap.insertAdjacentHTML('beforeend', `
@@ -283,6 +284,7 @@ document.addEventListener('livewire:navigated', () => {
 
         // Render RAM buttons
         const ramWrap = document.getElementById('ram-selector');
+        ramWrap.innerHTML = '';
         (data.ram_options || [512,1024,2048,4096]).forEach(r => {
             const locked = r > maxRamMb;
             const label = r >= 1024 ? (r/1024)+' GB' : r+' MB';
@@ -443,7 +445,7 @@ document.addEventListener('livewire:navigated', () => {
         const wrap = document.getElementById('cp-instances-wrap');
 
         if (!items || items.length === 0) {
-            wrap.innerHTML = '<div style="grid-column:1/-1;padding:2rem;text-align:center;color:var(--cp-ink-muted);font-size:0.88rem;">Belum ada instance.</div>';
+            wrap.innerHTML = '<div data-placeholder style="grid-column:1/-1;padding:2rem;text-align:center;color:var(--cp-ink-muted);font-size:0.88rem;">Belum ada instance.</div>';
             return;
         }
 
